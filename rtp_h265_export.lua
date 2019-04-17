@@ -1,7 +1,7 @@
 -- Dump RTP h.265 payload to raw h.265 file (*.265)
--- According to RFC3984 to dissector H265 payload of RTP to NALU, and write it
--- to from<sourceIp_sourcePort>to<dstIp_dstPort>.265 file. By now, we support single NALU,
--- AP and FU format RTP payload for H.265.
+-- According to RFC7798 to dissector H265 payload of RTP to NALU, and write it
+-- to from<sourceIp_sourcePort>to<dstIp_dstPort>.265 file. 
+-- By now, we support Single NAL Unit Packets, Aggregation Packets (APs) and Fragmentation Units (FUs) format RTP payload for H.265.
 -- You can access this feature by menu "Tools->Export H265 to file"
 -- Reference from Huang Qiangxiong (qiangxiong.huang@gmail.com)
 -- Author: Yang Xing (hongch_911@126.com)
@@ -21,7 +21,6 @@ do
     local function export_h265_to_file()
         -- window for showing information
         local tw = TextWindow.new("Export H265 to File Info Win")
-        --local pgtw = ProgDlg.new("Export H265 to File Process", "Dumping H265 data to file...")
         local pgtw;
         
         -- add message to information window
@@ -109,7 +108,7 @@ do
             write_to_file(stream_info, h265:tvb():raw(), true, true)
         end
         
-        -- STAP-A: one rtp payload contains more than one NALUs
+        -- APs: one rtp payload contains more than one NALUs
         local function process_ap(stream_info, h265)
             local h265tvb = h265:tvb()
             local offset = 2
@@ -120,7 +119,7 @@ do
             until offset >= h265tvb:len()
         end
         
-        -- FU-A: one rtp payload contains only one part of a NALU (might be begin, middle and end part of a NALU)
+        -- FUs: one rtp payload contains only one part of a NALU (might be begin, middle and end part of a NALU)
         local function process_fu(stream_info, h265)
             local h265tvb = h265:tvb()
             local start_of_nalu = (h265tvb:range(2, 1):bitfield(0,1) ~= 0)
