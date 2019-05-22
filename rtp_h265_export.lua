@@ -1,8 +1,9 @@
 -- Dump RTP h.265 payload to raw h.265 file (*.265)
 -- According to RFC7798 to dissector H265 payload of RTP to NALU, and write it
 -- to from<sourceIp_sourcePort>to<dstIp_dstPort>.265 file. 
--- By now, we support Single NAL Unit Packets, Aggregation Packets (APs) and Fragmentation Units (FUs) format RTP payload for H.265.
--- You can access this feature by menu "Tools->Export H265 to file"
+-- By now, we support Single NAL Unit Packets, Aggregation Packets (APs)
+-- and Fragmentation Units (FUs) format RTP payload for H.265.
+-- You can access this feature by menu "Tools"
 -- Reference from Huang Qiangxiong (qiangxiong.huang@gmail.com)
 -- Author: Yang Xing (hongch_911@126.com)
 ------------------------------------------------------------------------------------------------
@@ -39,7 +40,7 @@ do
         
         -- get rtp stream info by src and dst address
         function get_stream_info(pinfo)
-            local key = "from_" .. tostring(pinfo.src) .. "_" .. tostring(pinfo.src_port) .. "to" .. tostring(pinfo.dst) .. "_" .. tostring(pinfo.dst_port)
+            local key = "from_" .. tostring(pinfo.src) .. "_" .. tostring(pinfo.src_port) .. "_to_" .. tostring(pinfo.dst) .. "_" .. tostring(pinfo.dst_port)
             key = key:gsub(":", ".")
             local stream_info = stream_infos[key]
             if not stream_info then -- if not exists, create one
@@ -50,7 +51,7 @@ do
                 stream_info.counter2 = 0 -- for second time running
                 stream_infos[key] = stream_info
                 twappend("Ready to export H.265 data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
-                         .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " to file:\n         [" .. stream_info.filename .. "] ...\n")
+                         .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " to file:[" .. stream_info.filename .. "] ...\n")
             end
             return stream_info
         end
@@ -75,13 +76,13 @@ do
                 if stream_info.counter2 == 0 then
                     -- write SPS and PPS to file header first
                     if stream_info.sps then
-                        stream_info.file:write("\00\00\00\01")
+                        stream_info.file:write("\x00\x00\x00\x01")
                         stream_info.file:write(stream_info.sps)
                     else
                         twappend("Not found SPS for [" .. stream_info.filename .. "], it might not be played!\n")
                     end
                     if stream_info.pps then
-                        stream_info.file:write("\00\00\00\01")
+                        stream_info.file:write("\x00\x00\x00\x01")
                         stream_info.file:write(stream_info.pps)
                     else
                         twappend("Not found PPS for [" .. stream_info.filename .. "], it might not be played!\n")
@@ -90,7 +91,7 @@ do
             
                 if begin_with_nalu_hdr then
                     -- *.265 raw file format seams that every nalu start with 0x00000001
-                    stream_info.file:write("\00\00\00\01")
+                    stream_info.file:write("\x00\x00\x00\x01")
                 end
                 stream_info.file:write(str_bytes)
                 stream_info.counter2 = stream_info.counter2 + 1
@@ -161,7 +162,7 @@ do
                     -- FUs
                     process_fu(stream_info, h265)
                 else
-                    twappend("Error: unknown type=" .. hdr_type .. " ; we only know 1-47(Single NALU),48(APs),49(FUs)!")
+                    twappend("Error: No.=" .. tostring(pinfo.number) .. " unknown type=" .. hdr_type .. " ; we only know 1-47(Single NALU),48(APs),49(FUs)!")
                 end
             end
         end
@@ -219,5 +220,5 @@ do
     end
     
     -- Find this feature in menu "Tools"
-    register_menu("Export H265 to file", export_h265_to_file, MENU_TOOLS_UNSORTED)
+    register_menu("Video/Export H265", export_h265_to_file, MENU_TOOLS_UNSORTED)
 end
