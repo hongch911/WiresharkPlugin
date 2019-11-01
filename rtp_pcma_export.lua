@@ -55,7 +55,7 @@ do
             local stream_info = stream_infos[key]
             if not stream_info then -- if not exists, create one
                 stream_info = { }
-                stream_info.filename = key.. ".pcm"
+                stream_info.filename = key.. ".pcma.raw"
                 stream_info.file = io.open(stream_info.filename, "wb")
                 stream_infos[key] = stream_info
                 twappend("Ready to export data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
