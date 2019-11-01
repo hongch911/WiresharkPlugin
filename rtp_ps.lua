@@ -8,11 +8,13 @@ do
     local bit = (version_num >= 5.2) and require("bit32") or require("bit")
 
     local ps_stream_type_vals = {
+        [0x0f] = "AAC",
         [0x10] = "MPEG-4 Video",
         [0x1b] = "H.264",
         [0x24] = "H.265",
         [0x80] = "SVAC Video",
-        [0x90] = "G.711",
+        [0x90] = "G.711A",
+        [0x91] = "G.711U",
         [0x92] = "G.722.1",
         [0x93] = "G.723.1",
         [0x99] = "G.729",
@@ -148,7 +150,7 @@ do
     }
     local function get_enum_name(list, index)
         local value = list[index]
-        return value and value or string.format("Unknown（%d）",index)
+        return value and value or string.format("Unknown (%d)",index)
     end
     
     local proto_ps = Proto("ps", "PS")
@@ -207,6 +209,14 @@ do
     local ps_pes_extension_flag = ProtoField.new("Extension flag", "ps.pes.extension_flag", ftypes.UINT8, nil, base.DEC, 0x01)
     local ps_pes_header_data_length = ProtoField.new("Header Data Length", "ps.pes.header_data_length", ftypes.UINT8, nil, base.DEC)
     local ps_pes_header_data_bytes = ProtoField.bytes("ps.pes.header_data_bytes", "Header Data bytes", base.SPACE)
+    local ps_pes_pts = ProtoField.none("ps.pes.pts", "PTS")
+    local ps_pes_dts = ProtoField.none("ps.pes.dts", "DTS")
+    local ps_pes_escr = ProtoField.none("ps.pes.escr", "ESCR")
+    local ps_pes_es_rate = ProtoField.none("ps.pes.es_rate", "ES rate")
+    local ps_pes_dsm_trick_mode = ProtoField.new("DSM trick mode", "ps.pes.dsm_trick_mode", ftypes.UINT8, nil, base.HEX)
+    local ps_pes_additional_info = ProtoField.new("Copyright Info", "ps.pes.additional_info", ftypes.UINT8, nil, base.HEX)
+    local ps_pes_crc = ProtoField.new("CRC", "ps.pes.crc", ftypes.UINT16, nil, base.HEX)
+    local ps_pes_extension = ProtoField.new("Extension", "ps.pes.extension", ftypes.UINT8, nil, base.HEX)
     local ps_pes_data_bytes = ProtoField.bytes("ps.pes.data_bytes", "Data bytes")
     local ps_data = ProtoField.bytes("ps.data", "Data")
 
@@ -228,7 +238,7 @@ do
         ps_system_header,ps_system_header_start_code,ps_system_header_length,ps_system_header_rate_bound,ps_system_header_audio_bound,ps_system_header_fixed_flag,ps_system_header_CSPS_flag,ps_system_header_system_audio_lock_flag,ps_system_header_system_video_lock_flag,ps_system_header_vedio_bound,ps_system_header_packet_rate_restriction_flag,ps_system_header_stream_id,ps_system_header_P_STD_scale,ps_system_header_P_STD_bound,
         ps_program_stream,ps_program_stream_start_code,ps_program_stream_id,ps_program_stream_length,ps_program_stream_current_next_indicator,ps_program_stream_map_version,ps_program_stream_info_length,ps_program_stream_map_length,ps_program_stream_map_stream_type,ps_program_stream_map_stream_id,ps_program_stream_map_info_length,ps_program_stream_CRC,
         ps_pes,ps_pes_start_code,ps_pes_stream_id,ps_pes_length,ps_pes_scrambing_control,ps_pes_priority,ps_pes_alignment,ps_pes_copyright,ps_pes_original,ps_pes_pts_dts_flag,ps_pes_escr_flag,ps_pes_es_rate_flag,ps_pes_dsm_trick_mode_flag,ps_pes_additional_info_flag,ps_pes_crc_flag,ps_pes_extension_flag,
-        ps_pes_header_data_length,ps_pes_header_data_bytes,ps_pes_data_bytes,
+        ps_pes_header_data_length,ps_pes_header_data_bytes,ps_pes_pts,ps_pes_dts,ps_pes_escr,ps_pes_es_rate,ps_pes_dsm_trick_mode,ps_pes_additional_info,ps_pes_crc,ps_pes_extension,ps_pes_data_bytes,
         ps_data,h264_f_bit,h264_nal_ref_idc,h264_nal_unit_type,h265_f_bit,h265_nal_unit_type,h265_nal_layer_id,h265_nal_temporal_id
     }
 
@@ -289,24 +299,14 @@ do
         local stuffing_size = tvb:range(offset+13,1):bitfield(5, 3)
         local ps_hdr_tree = tree:add(ps_hdr, tvb:range(offset,14+stuffing_size))
         ps_hdr_tree:add(ps_start_code, tvb:range(offset,4))
-        local scr_tree = ps_hdr_tree:add(ps_scr_base, tvb:range(offset+4,5))
+        
         local scr_1 = tvb:range(offset+4,1):bitfield(2,3)
-        local scr_2_1 = tvb:range(offset+4,1):bitfield(6,2)
-        local scr_2_2 = tvb:range(offset+5,1):bitfield(0,8)
-        local scr_2_3 = tvb:range(offset+6,1):bitfield(0,5)
-        local scr_3_1 = tvb:range(offset+6,1):bitfield(6,2)
-        local scr_3_2 = tvb:range(offset+7,1):bitfield(0,8)
-        local scr_3_3 = tvb:range(offset+8,1):bitfield(0,5)
-        local scr_e_1 = tvb:range(offset+8,1):bitfield(6,2)
-        local scr_e_2 = tvb:range(offset+9,1):bitfield(0,7)
-        local scr = bit.lshift(scr_1,30)+bit.lshift(scr_2_1,28)+bit.lshift(scr_2_2,20)+bit.lshift(scr_2_3,15)
-            +bit.lshift(scr_3_1,13)+bit.lshift(scr_3_2,5)+scr_3_3
-        scr_tree:append_text(string.format(": %u",scr))
-        local scr_e_tree = ps_hdr_tree:add(ps_scr_ext, tvb:range(offset+8,2))
-        local scr_e_1 = tvb:range(offset+8,1):bitfield(6,2)
-        local scr_e_2 = tvb:range(offset+9,1):bitfield(0,7)
-        local scr_e = bit.lshift(scr_e_1,7)+scr_e_2
-        scr_e_tree:append_text(string.format(": %u",scr_e))
+        local scr_2 = tvb:range(offset+4,3):bitfield(6,15)
+        local scr_3 = tvb:range(offset+6,3):bitfield(6,15)
+        local scr_e = tvb:range(offset+8,2):bitfield(6,9)
+        local scr = bit.lshift(scr_1,30)+bit.lshift(scr_2,15)+scr_3
+        ps_hdr_tree:add(ps_scr_base, tvb:range(offset+4,6)):append_text(string.format(": %u",scr))
+        ps_hdr_tree:add(ps_scr_ext, tvb:range(offset+4,6)):append_text(string.format(": %u",scr_e))
         ps_hdr_tree:add(ps_multiplex_rate, tvb:range(offset+10,3))
         ps_hdr_tree:add(ps_stuffing_length, tvb:range(offset+13,1))
         if (stuffing_size > 0) then
@@ -377,7 +377,7 @@ do
         local ps_pes_tree = tree:add(ps_pes, tvb:range(offset,complete_packet and (pes_length+4+2) or (tvb_len-offset)))
         ps_pes_tree:add(ps_pes_start_code, tvb:range(offset,3))
         ps_pes_tree:add(ps_pes_stream_id, tvb:range(offset+3,1))
-        ps_pes_tree:add(ps_pes_length, tvb:range(offset+4,2))
+        local pes_length_tree = ps_pes_tree:add(ps_pes_length, tvb:range(offset+4,2))
 
         ps_pes_tree:add(ps_pes_scrambing_control, tvb:range(offset+6,1))
         ps_pes_tree:add(ps_pes_priority, tvb:range(offset+6,1))
@@ -392,10 +392,72 @@ do
         ps_pes_tree:add(ps_pes_additional_info_flag, tvb:range(offset+7,1))
         ps_pes_tree:add(ps_pes_crc_flag, tvb:range(offset+7,1))
         ps_pes_tree:add(ps_pes_extension_flag, tvb:range(offset+7,1))
+
         local pes_header_data_len = tvb:range(offset+8, 1):uint()
-        ps_pes_tree:add(ps_pes_header_data_length, tvb:range(offset+8,1))
+        local header_data_tree = ps_pes_tree:add(ps_pes_header_data_length, tvb:range(offset+8,1))
+        pes_length_tree:append_text(string.format(" (data Len: %u)",pes_length-pes_header_data_len-3))
         if pes_header_data_len>0 then
-            ps_pes_tree:add(ps_pes_header_data_bytes, tvb:range(offset+9,pes_header_data_len))
+            header_data_tree:add(ps_pes_header_data_bytes, tvb:range(offset+9,pes_header_data_len))
+
+            local index = offset+9
+            local pts_dts_flag = tvb:range(offset+7,1):bitfield(0,2)
+            if pts_dts_flag == 0x2 then
+                local pts_1 = tvb:range(index,1):bitfield(4,3)
+                local pts_2 = tvb:range(index+1,2):bitfield(0,15)
+                local pts_3 = tvb:range(index+3,2):bitfield(0,15)
+                local pts = bit.lshift(pts_1,30)+bit.lshift(pts_2,15)+pts_3
+                ps_pes_tree:add(ps_pes_pts, tvb:range(index,5)):append_text(string.format(": %u",pts))
+                index = index + 5
+            elseif pts_dts_flag == 0x3 then
+                local pts_1 = tvb:range(index,1):bitfield(4,3)
+                local pts_2 = tvb:range(index+1,2):bitfield(0,15)
+                local pts_3 = tvb:range(index+3,2):bitfield(0,15)
+                local pts = bit.lshift(pts_1,30)+bit.lshift(pts_2,15)+pts_3
+                ps_pes_tree:add(ps_pes_pts, tvb:range(index,5)):append_text(string.format(": %u",pts))
+
+                local dts_1 = tvb:range(index+5,1):bitfield(4,3)
+                local dts_2 = tvb:range(index+6,2):bitfield(0,15)
+                local dts_3 = tvb:range(indext+8,2):bitfield(0,15)
+                local dts = bit.lshift(dts_1,30)+bit.lshift(dts_2,15)+dts_3
+                ps_pes_tree:add(ps_pes_dts, tvb:range(index+5,5)):append_text(string.format(": %u",dts))
+                index = index + 10
+            end
+            local escr_flag = tvb:range(offset+7,1):bitfield(2,1)
+            if escr_flag == 1 then
+                local escr_1 = tvb:range(index,1):bitfield(2,3)
+                local escr_2 = tvb:range(index,3):bitfield(6,15)
+                local escr_3 = tvb:range(index+2,3):bitfield(6,15)
+                local escr_e = tvb:range(index+4,2):bitfield(6,9)
+                local escr = bit.lshift(escr_1,30)+bit.lshift(escr_2,15)+escr_3
+                ps_pes_tree:add(ps_pes_escr, tvb:range(index,6)):append_text(string.format(": %u, extension: %u",escr,escr_e))
+                index = index + 6
+            end
+            local es_rate_flag = tvb:range(offset+7,1):bitfield(3,1)
+            if es_rate_flag == 1 then
+                local es_rate = tvb:range(index,3):bitfield(1,22)
+                ps_pes_tree:add(ps_pes_es_rate, tvb:range(index,3)):append_text(string.format(": %u",dts))
+                index = index + 3
+            end
+            local dsm_trick_mode_flag = tvb:range(offset+7,1):bitfield(4,1)
+            if dsm_trick_mode_flag == 1 then
+                ps_pes_tree:add(ps_pes_dsm_trick_mode, tvb:range(index,1))
+                index = index + 1
+            end
+            local additional_info_flag = tvb:range(offset+7,1):bitfield(5,1)
+            if additional_info_flag == 1 then
+                ps_pes_tree:add(ps_pes_additional_info, tvb:range(index,1))
+                index = index + 1
+            end
+            local crc_flag = tvb:range(offset+7,1):bitfield(6,1)
+            if crc_flag == 1 then
+                ps_pes_tree:add(ps_pes_crc, tvb:range(index,2))
+                index = index + 2
+            end
+            local extension_flag = tvb:range(offset+7,1):bitfield(7,1)
+            if extension_flag == 1 then
+                ps_pes_tree:add(ps_pes_extension, tvb:range(index,1))
+                index = index + 1
+            end
         end
 
         local stream_id = tvb:range(offset+3,1):uint()
@@ -446,6 +508,7 @@ do
     function proto_ps.dissector(tvb, pinfo, tree)
         -- local frame_seqs = frame_num()
         -- if (frame_seqs.value == 1)
+
         -- add proto item to tree
         local proto_tree = tree:add(proto_ps, tvb())
         local offset = 0
@@ -473,7 +536,11 @@ do
                 offset = offset + 4 + 2 + pes_length
             end
         else
-            dis_raw_data(tvb, proto_tree, offset, pinfo)
+            if (is_pes_header(tvb, offset)) then
+                dis_pes(tvb, proto_tree, offset, pinfo)
+            else
+                dis_raw_data(tvb, proto_tree, offset, pinfo)
+            end
         end
         
         pinfo.columns.protocol = "PS"
@@ -481,7 +548,7 @@ do
 
     -- set this protocal preferences
     local prefs = proto_ps.prefs
-    prefs.dyn_pt = Pref.uint("PS dynamic payload type", 0, "The value > 95")
+    prefs.dyn_pt = Pref.range("PS dynamic payload type", "", "Dynamic payload types which will be interpreted as PS; Values must be in the range 96 - 127", 127)
 
     -- register this dissector to dynamic payload type dissectorTable
     local dyn_payload_type_table = DissectorTable.get("rtp_dyn_payload_type")
@@ -489,11 +556,13 @@ do
 
     -- register this dissector to specific payload type (specified in preferences windows)
     local payload_type_table = DissectorTable.get("rtp.pt")
+    local dyn_pt_number = nil
+    local old_dyn_pt = nil
     local old_dissector = nil
-    local old_dyn_pt = 0
+    
     function proto_ps.init()
         if (prefs.dyn_pt ~= old_dyn_pt) then
-            if (old_dyn_pt > 0) then -- reset old dissector
+            if (old_dyn_pt ~= nil) then -- reset old dissector
                 if (old_dissector == nil) then -- just remove this proto
                     payload_type_table:remove(old_dyn_pt, proto_ps)
                 else  -- replace this proto with old proto on old payload type
@@ -501,9 +570,11 @@ do
                 end
             end
             old_dyn_pt = prefs.dyn_pt  -- save current payload type's dissector
-            old_dissector = payload_type_table:get_dissector(old_dyn_pt)
-            if (prefs.dyn_pt > 0) then
-                payload_type_table:add(prefs.dyn_pt, proto_ps)
+            
+            if string.len(prefs.dyn_pt) > 0 then
+                dyn_pt_number = tonumber(prefs.dyn_pt)
+                old_dissector = payload_type_table:get_dissector(dyn_pt_number)
+                payload_type_table:add(dyn_pt_number, proto_ps)
             end
         end
     end

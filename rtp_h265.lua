@@ -191,7 +191,7 @@ do
 
     -- set this protocal preferences
     local prefs = proto_h265.prefs
-    prefs.dyn_pt = Pref.uint("H265 dynamic payload types", 0, "The value > 95")
+    prefs.dyn_pt = Pref.range("H265 dynamic payload type", "", "Dynamic payload types which will be interpreted as H265; Values must be in the range 96 - 127", 127)
 
     -- register this dissector to dynamic payload type dissectorTable
     local dyn_payload_type_table = DissectorTable.get("rtp_dyn_payload_type")
@@ -199,11 +199,13 @@ do
 
     -- register this dissector to specific payload type (specified in preferences windows)
     local payload_type_table = DissectorTable.get("rtp.pt")
+    local dyn_pt_number = nil
+    local old_dyn_pt = nil
     local old_dissector = nil
-    local old_dyn_pt = 0
+    
     function proto_h265.init()
         if (prefs.dyn_pt ~= old_dyn_pt) then
-            if (old_dyn_pt > 0) then -- reset old dissector
+            if (old_dyn_pt ~= nil) then -- reset old dissector
                 if (old_dissector == nil) then -- just remove this proto
                     payload_type_table:remove(old_dyn_pt, proto_h265)
                 else  -- replace this proto with old proto on old payload type
@@ -211,9 +213,11 @@ do
                 end
             end
             old_dyn_pt = prefs.dyn_pt  -- save current payload type's dissector
-            old_dissector = payload_type_table:get_dissector(old_dyn_pt)
-            if (prefs.dyn_pt > 0) then
-                payload_type_table:add(prefs.dyn_pt, proto_h265)
+            
+            if string.len(prefs.dyn_pt) > 0 then
+                dyn_pt_number = tonumber(prefs.dyn_pt)
+                old_dissector = payload_type_table:get_dissector(dyn_pt_number)
+                payload_type_table:add(dyn_pt_number, proto_h265)
             end
         end
     end
