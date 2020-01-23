@@ -31,6 +31,8 @@ do
     -- for geting data (the field's value is type of ByteArray)
     local f_data = Field.new("pcmu")
 
+    local filter_string = nil
+
     -- menu action. When you click "Tools" will run this function
     local function export_data_to_file()
         -- window for showing information
@@ -46,7 +48,9 @@ do
         local stream_infos = nil
 
         -- trigered by all ps packats
-        local my_tap = Listener.new(tap, "pcmu")
+        local list_filter = (filter_string == nil or filter_string == '') and ("pcmu") or ("pcmu && "..filter_string)
+        twappend("Listener filter: " .. list_filter .. "\n")
+        local my_tap = Listener.new("frame", list_filter)
         
         -- get rtp stream info by src and dst address
         function get_stream_info(pinfo)
@@ -59,7 +63,7 @@ do
                 stream_info.file = io.open(stream_info.filename, "wb")
                 stream_infos[key] = stream_info
                 twappend("Ready to export data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
-                         .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " to file:[" .. stream_info.filename .. "] ...\n")
+                         .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " write to file:[" .. stream_info.filename .. "] ...\n")
             end
             return stream_info
         end
@@ -95,8 +99,9 @@ do
                     if stream and stream.file then
                         stream.file:flush()
                         stream.file:close()
-                        twappend("File [" .. stream.filename .. "] generated OK!\n")
                         stream.file = nil
+                        twappend("File [" .. stream.filename .. "] generated OK!\n")
+                        twappend("ffplay -ar 8000 -ac 1 -f s16le -acodec pcm_mulaw -autoexit "..stream.filename)
                         no_streams = false
                     end
                 end
@@ -130,7 +135,16 @@ do
         
         tw:add_button("Export All", export_all)
     end
+
+    local function dialog_func(str)
+        filter_string = str
+        export_data_to_file()
+    end
+
+    local function dialog_menu()
+        new_dialog("Filter Dialog",dialog_func,"Filter")
+    end
     
     -- Find this feature in menu "Tools"
-    register_menu("Audio/Export PCMU", export_data_to_file, MENU_TOOLS_UNSORTED)
+    register_menu("Audio/Export PCMU", dialog_menu, MENU_TOOLS_UNSORTED)
 end

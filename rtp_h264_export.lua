@@ -17,6 +17,8 @@ do
     local f_rtp_seq = Field.new("rtp.seq")
     local f_rtp_timestamp = Field.new("rtp.timestamp")
 
+    local filter_string = nil
+
     -- menu action. When you click "Tools->Export H264 to file" will run this function
     local function export_h264_to_file()
         -- window for showing information
@@ -35,7 +37,9 @@ do
         local stream_infos = nil
 
         -- trigered by all h264 packats
-        local my_h264_tap = Listener.new(tap, "h264")
+        local list_filter = (filter_string == nil or filter_string == '') and ("h264") or ("h264 && "..filter_string)
+        twappend("Listener filter: " .. list_filter .. "\n")
+        local my_h264_tap = Listener.new("frame", list_filter)
         
         -- get rtp stream info by src and dst address
         function get_stream_info(pinfo)
@@ -45,12 +49,15 @@ do
             if not stream_info then -- if not exists, create one
                 stream_info = { }
                 stream_info.filename = key.. ".264"
-                stream_info.file = io.open(stream_info.filename, "wb")
+                stream_info.file,msg = io.open(stream_info.filename, "wb")
+                if stream_info.file==nil then
+                    twappend("Open file failed:" .. msg)
+                end
                 stream_info.counter = 0 -- counting h264 total NALUs
                 stream_info.counter2 = 0 -- for second time running
                 stream_infos[key] = stream_info
                 twappend("Ready to export H.264 data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
-                         .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " to file:[" .. stream_info.filename .. "] ...\n")
+                         .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " write to file:[" .. stream_info.filename .. "] ...")
             end
             return stream_info
         end
@@ -78,13 +85,13 @@ do
                         stream_info.file:write("\x00\x00\x00\x01")
                         stream_info.file:write(stream_info.sps)
                     else
-                        twappend("Not found SPS for [" .. stream_info.filename .. "], it might not be played!\n")
+                        twappend("Not found SPS for [" .. stream_info.filename .. "], it might not be played!")
                     end
                     if stream_info.pps then
                         stream_info.file:write("\x00\x00\x00\x01")
                         stream_info.file:write(stream_info.pps)
                     else
-                        twappend("Not found PPS for [" .. stream_info.filename .. "], it might not be played!\n")
+                        twappend("Not found PPS for [" .. stream_info.filename .. "], it might not be played!")
                     end
                 end
             
@@ -168,14 +175,22 @@ do
         
         -- close all open files
         local function close_all_files()
+            twappend("")
+            local index = 0;
             if stream_infos then
                 local no_streams = true
                 for id,stream in pairs(stream_infos) do
                     if stream and stream.file then
                         stream.file:flush()
                         stream.file:close()
-                        twappend("File [" .. stream.filename .. "] generated OK!\n")
                         stream.file = nil
+                        index = index + 1
+                        twappend(index .. ": [" .. stream.filename .. "] generated OK!")
+                        local anony_fuc = function()
+                            twappend("ffplay -x 640 -autoexit "..stream.filename)
+                            os.execute("ffplay -x 640 -autoexit "..stream.filename)
+                        end
+                        tw:add_button("Play "..index, anony_fuc)
                         no_streams = false
                     end
                 end
@@ -217,7 +232,16 @@ do
         
         tw:add_button("Export All", export_all)
     end
+
+    local function dialog_func(str)
+        filter_string = str
+        export_h264_to_file()
+    end
+
+    local function dialog_menu()
+        new_dialog("Filter Dialog",dialog_func,"Filter")
+    end
     
     -- Find this feature in menu "Tools"
-    register_menu("Video/Export H264", export_h264_to_file, MENU_TOOLS_UNSORTED)
+    register_menu("Video/Export H264", dialog_menu, MENU_TOOLS_UNSORTED)
 end
