@@ -78,7 +78,13 @@ do
                     stream_info = { }
                     stream_info.streamtype = streamType
                     stream_info.filename = key.. fileType
-                    stream_info.file = io.open(stream_info.filename, "wb")
+                    stream_info.filepath = stream_info.filename
+                    stream_info.file,msg = io.open(stream_info.filename, "wb")
+                    if stream_info.file==nil then
+                        stream_info.filepath = persconffile_path('tmp').."/"..stream_info.filename
+                        stream_info.file = io.open(persconffile_path('tmp').."/"..stream_info.filename, "wb")
+                    end
+                    -- twappend("Output file path:" .. stream_info.filepath)
                     stream_info.counter = 0 -- counting ps total NALUs
                     stream_info.counter2 = 0 -- for second time running
                     stream_infos[key] = stream_info
@@ -175,7 +181,7 @@ do
                         twappend(index .. ": [" .. stream.filename .. "] generated OK!")
                         local anony_fuc = function()
                             twappend("ffplay -x 640 -autoexit "..stream.filename)
-                            os.execute("ffplay -x 640 -autoexit "..stream.filename)
+                            os.execute("ffplay -x 640 -autoexit "..stream.filepath)
                         end
                         tw:add_button("Play "..index, anony_fuc)
                         no_streams = false
