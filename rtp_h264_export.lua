@@ -49,11 +49,16 @@ do
             if not stream_info then -- if not exists, create one
                 stream_info = { }
                 stream_info.filename = key.. ".264"
-                stream_info.filepath = stream_info.filename
-                stream_info.file,msg = io.open(stream_info.filename, "wb")
-                if stream_info.file==nil then
-                    stream_info.filepath = persconffile_path('tmp').."/"..stream_info.filename
-                    stream_info.file = io.open(persconffile_path('tmp').."/"..stream_info.filename, "wb")
+                -- stream_info.filepath = stream_info.filename
+                -- stream_info.file,msg = io.open(stream_info.filename, "wb")
+                local tmp = persconffile_path('tmp')
+                if not Dir.exists(tmp) then
+                    Dir.make(tmp)
+                end
+                stream_info.filepath = tmp.."/"..stream_info.filename
+                stream_info.file,msg = io.open(tmp.."/"..stream_info.filename, "wb")
+                if msg then
+                    twappend("io.open "..stream_info.filepath..", error "..msg)
                 end
                 -- twappend("Output file path:" .. stream_info.filepath)
                 stream_info.counter = 0 -- counting h264 total NALUs
@@ -189,8 +194,9 @@ do
                         stream.file = nil
                         index = index + 1
                         twappend(index .. ": [" .. stream.filename .. "] generated OK!")
-                        local anony_fuc = function()
+                        local anony_fuc = function ()
                             twappend("ffplay -x 640 -autoexit "..stream.filename)
+                            copy_to_clipboard("ffplay -x 640 -autoexit "..stream.filepath)
                             os.execute("ffplay -x 640 -autoexit "..stream.filepath)
                         end
                         tw:add_button("Play "..index, anony_fuc)
@@ -200,6 +206,8 @@ do
                 
                 if no_streams then
                     twappend("Not found any H.264 over RTP streams!")
+                else
+                    tw:add_button("Browser", function () browser_open_data_file(persconffile_path('tmp')) end)
                 end
             end
         end
