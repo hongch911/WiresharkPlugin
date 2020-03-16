@@ -3,15 +3,15 @@
 -- The AMR file header (#!AMR\n)
 -- +---------------+---------------+---------------+
 -- |  0x23   0x21  |  0x41   0x4d  |  0x52   0x0a  |
--- |    ”Ô“Ù÷°1                                    |
--- |    ”Ô“Ù÷°2                                    |
+-- |    ËØ≠Èü≥Â∏ß1                                    |
+-- |    ËØ≠Èü≥Â∏ß2                                    |
 -- |    ...                                        |
 -- Write it to from<sourceIp_sourcePort>to<dstIp_dstPort> file.
 -- You can access this feature by menu "Tools"
 -- Author: Yang Xing (hongch_911@126.com)
 ------------------------------------------------------------------------------------------------
 do
-    -- µº≥ˆ ˝æ›µΩŒƒº˛≤ø∑÷
+    -- ÂØºÂá∫Êï∞ÊçÆÂà∞Êñá‰ª∂ÈÉ®ÂàÜ
     local version_str = string.match(_VERSION, "%d+[.]%d*")
     local version_num = version_str and tonumber(version_str) or 5.1
     local bit = (version_num >= 5.2) and require("bit32") or require("bit")
@@ -50,7 +50,14 @@ do
         local stream_infos = nil
 
         -- trigered by all ps packats
-        local list_filter = (filter_string == nil or filter_string == '') and ("amr") or ("amr && "..filter_string)
+        local list_filter = ''
+        if filter_string == nil or filter_string == '' then
+            list_filter = "amr"
+        elseif string.find(filter_string,"amr")~=nil then
+            list_filter = filter_string
+        else
+            list_filter = "amr && "..filter_string
+        end
         twappend("Listener filter: " .. list_filter .. "\n")
         local my_tap = Listener.new("frame", list_filter)
         
@@ -75,7 +82,7 @@ do
         local function write_to_file(stream_info, ft, data_bytes)
             local frame_header = bit.bor(0x04 ,bit.lshift(ft, 3))
             data_bytes:set_index(0, frame_header)
-            -- –Ë“™byte ˝◊È’˚ÃÂ◊Û“∆¡Ω∏ˆbit
+            -- ÈúÄË¶ÅbyteÊï∞ÁªÑÊï¥‰ΩìÂ∑¶Áßª‰∏§‰∏™bit
             for index=1,data_bytes:len()-2 do
                 local A = bit.lshift(data_bytes:get_index(index), 2)
                 local B = bit.rshift(data_bytes:get_index(index+1), 6)
@@ -138,11 +145,13 @@ do
             -- do nothing now
         end
         
-        local function remove()
+        tw:set_atclose(function ()
             my_tap:remove()
-        end
-        
-        tw:set_atclose(remove)
+            local tmp = persconffile_path('tmp')
+            if Dir.exists(tmp) then
+                Dir.remove_all(tmp)
+            end
+        end)
         
         local function export_data()
             stream_infos = {}
@@ -151,11 +160,14 @@ do
             stream_infos = nil
         end
         
-        local function export_all()
+        tw:add_button("Export All", function ()
             export_data()
-        end
-        
-        tw:add_button("Export All", export_all)
+        end)
+
+        tw:add_button("Set Filter", function ()
+            tw:close()
+            dialog_menu()
+        end)
     end
 
     local function dialog_func(str)
@@ -163,10 +175,15 @@ do
         export_data_to_file()
     end
 
-    local function dialog_menu()
+    function dialog_menu()
         new_dialog("Filter Dialog",dialog_func,"Filter")
+    end
+
+    local function dialog_default()
+        filter_string = get_filter()
+        export_data_to_file()
     end
     
     -- Find this feature in menu "Tools"
-    register_menu("Audio/Export AMR", dialog_menu, MENU_TOOLS_UNSORTED)
+    register_menu("Audio/Export AMR", dialog_default, MENU_TOOLS_UNSORTED)
 end

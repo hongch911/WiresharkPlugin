@@ -18,14 +18,14 @@
 -- Author: Yang Xing (hongch_911@126.com)
 ------------------------------------------------------------------------------------------------
 do
-    -- ½âÎöÎªSILKÒôÆµ²¿·Ö
+    -- è§£æä¸ºSILKéŸ³é¢‘éƒ¨åˆ†
     local proto_silk = Proto("silk", "Audio SILK")
  
     local prefs = proto_silk.prefs
     prefs.dyn_pt = Pref.uint("SILK dynamic payload type", 0, "The value > 95")
 
-    -- Wireshark¶ÔÃ¿¸öÏà¹ØÊı¾İ°üµ÷ÓÃ¸Ãº¯Êı
-    -- tvb:Testy Virtual Buffer±¨ÎÄ»º´æ; pinfo:packet infomarmation±¨ÎÄĞÅÏ¢; treeitem:½âÎöÊ÷½Úµã
+    -- Wiresharkå¯¹æ¯ä¸ªç›¸å…³æ•°æ®åŒ…è°ƒç”¨è¯¥å‡½æ•°
+    -- tvb:Testy Virtual BufferæŠ¥æ–‡ç¼“å­˜; pinfo:packet infomarmationæŠ¥æ–‡ä¿¡æ¯; treeitem:è§£ææ ‘èŠ‚ç‚¹
     function proto_silk.dissector(tvb, pinfo, tree)
         -- add proto item to tree
         local proto_tree = tree:add(proto_silk, tvb())
@@ -58,7 +58,7 @@ do
     --     end
     -- end
 
-    -- µ¼³öÊı¾İµ½ÎÄ¼ş²¿·Ö
+    -- å¯¼å‡ºæ•°æ®åˆ°æ–‡ä»¶éƒ¨åˆ†
     -- for geting data (the field's value is type of ByteArray)
     local f_data = Field.new("silk")
 
@@ -79,7 +79,14 @@ do
         local stream_infos = nil
 
         -- trigered by all ps packats
-        local list_filter = (filter_string == nil or filter_string == '') and ("silk") or ("silk && "..filter_string)
+        local list_filter = ''
+        if filter_string == nil or filter_string == '' then
+            list_filter = "silk"
+        elseif string.find(filter_string,"silk")~=nil then
+            list_filter = filter_string
+        else
+            list_filter = "silk && "..filter_string
+        end
         twappend("Listener filter: " .. list_filter .. "\n")
         local my_tap = Listener.new("frame", list_filter)
         
@@ -151,11 +158,13 @@ do
             -- do nothing now
         end
         
-        local function remove()
+        tw:set_atclose(function ()
             my_tap:remove()
-        end
-        
-        tw:set_atclose(remove)
+            local tmp = persconffile_path('tmp')
+            if Dir.exists(tmp) then
+                Dir.remove_all(tmp)
+            end
+        end)
         
         local function export_data()
             stream_infos = {}
@@ -164,11 +173,14 @@ do
             stream_infos = nil
         end
         
-        local function export_all()
+        tw:add_button("Export All", function ()
             export_data()
-        end
-        
-        tw:add_button("Export All", export_all)
+        end)
+
+        tw:add_button("Set Filter", function ()
+            tw:close()
+            dialog_menu()
+        end)
     end
 
     local function dialog_func(str)
@@ -176,10 +188,15 @@ do
         export_data_to_file()
     end
 
-    local function dialog_menu()
+    function dialog_menu()
         new_dialog("Filter Dialog",dialog_func,"Filter")
+    end
+
+    local function dialog_default()
+        filter_string = get_filter()
+        export_data_to_file()
     end
     
     -- Find this feature in menu "Tools"
-    register_menu("Audio/Export SILK", dialog_menu, MENU_TOOLS_UNSORTED)
+    register_menu("Audio/Export SILK", dialog_default, MENU_TOOLS_UNSORTED)
 end

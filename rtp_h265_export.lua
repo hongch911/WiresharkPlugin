@@ -38,7 +38,14 @@ do
         local stream_infos = nil
 
         -- trigered by all h265 packats
-        local list_filter = (filter_string == nil or filter_string == '') and ("h265") or ("h265 && "..filter_string)
+        local list_filter = ''
+        if filter_string == nil or filter_string == '' then
+            list_filter = "h265"
+        elseif string.find(filter_string,"h265")~=nil then
+            list_filter = filter_string
+        else
+            list_filter = "h265 && "..filter_string
+        end
         twappend("Listener filter: " .. list_filter .. "\n")
         local my_h265_tap = Listener.new("frame", list_filter)
         
@@ -195,10 +202,10 @@ do
                         stream.file = nil
                         index = index + 1
                         twappend(index .. ": [" .. stream.filename .. "] generated OK!")
-                        local anony_fuc = function()
-                            twappend("ffplay -x 640 -autoexit "..stream.filename)
-                            copy_to_clipboard("ffplay -x 640 -autoexit "..stream.filepath)
-                            os.execute("ffplay -x 640 -autoexit "..stream.filepath)
+                        local anony_fuc = function ()
+                            twappend("ffplay -x 640 -y 640 -autoexit "..stream.filename)
+                            copy_to_clipboard("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
+                            os.execute("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
                         end
                         tw:add_button("Play "..index, anony_fuc)
                         no_streams = false
@@ -217,11 +224,13 @@ do
             -- do nothing now
         end
         
-        local function remove()
+        tw:set_atclose(function ()
             my_h265_tap:remove()
-        end
-        
-        tw:set_atclose(remove)
+            local tmp = persconffile_path('tmp')
+            if Dir.exists(tmp) then
+                Dir.remove_all(tmp)
+            end
+        end)
         
         local function export_h265()
             pgtw = ProgDlg.new("Export H265 to File Process", "Dumping H265 data to file...")
@@ -238,11 +247,14 @@ do
             stream_infos = nil
         end
         
-        local function export_all()
+        tw:add_button("Export All", function ()
             export_h265()
-        end
-        
-        tw:add_button("Export All", export_all)
+        end)
+
+        tw:add_button("Set Filter", function ()
+            tw:close()
+            dialog_menu()
+        end)
     end
 
     local function dialog_func(str)
@@ -250,10 +262,15 @@ do
         export_h265_to_file()
     end
 
-    local function dialog_menu()
+    function dialog_menu()
         new_dialog("Filter Dialog",dialog_func,"Filter")
+    end
+
+    local function dialog_default()
+        filter_string = get_filter()
+        export_h265_to_file()
     end
     
     -- Find this feature in menu "Tools"
-    register_menu("Video/Export H265", dialog_menu, MENU_TOOLS_UNSORTED)
+    register_menu("Video/Export H265", dialog_default, MENU_TOOLS_UNSORTED)
 end

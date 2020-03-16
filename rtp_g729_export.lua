@@ -48,7 +48,14 @@ do
         local stream_infos = nil
 
         -- trigered by all ps packats
-        local list_filter = (filter_string == nil or filter_string == '') and ("g729") or ("g729 && "..filter_string)
+        local list_filter = ''
+        if filter_string == nil or filter_string == '' then
+            list_filter = "g729"
+        elseif string.find(filter_string,"g729")~=nil then
+            list_filter = filter_string
+        else
+            list_filter = "g729 && "..filter_string
+        end
         twappend("Listener filter: " .. list_filter .. "\n")
         local my_tap = Listener.new("frame", list_filter)
         
@@ -116,11 +123,13 @@ do
             -- do nothing now
         end
         
-        local function remove()
+        tw:set_atclose(function ()
             my_tap:remove()
-        end
-        
-        tw:set_atclose(remove)
+            local tmp = persconffile_path('tmp')
+            if Dir.exists(tmp) then
+                Dir.remove_all(tmp)
+            end
+        end)
         
         local function export_data()
             stream_infos = {}
@@ -129,11 +138,14 @@ do
             stream_infos = nil
         end
         
-        local function export_all()
+        tw:add_button("Export All", function ()
             export_data()
-        end
-        
-        tw:add_button("Export All", export_all)
+        end)
+
+        tw:add_button("Set Filter", function ()
+            tw:close()
+            dialog_menu()
+        end)
     end
 
     local function dialog_func(str)
@@ -141,10 +153,15 @@ do
         export_data_to_file()
     end
 
-    local function dialog_menu()
+    function dialog_menu()
         new_dialog("Filter Dialog",dialog_func,"Filter")
+    end
+
+    local function dialog_default()
+        filter_string = get_filter()
+        export_data_to_file()
     end
     
     -- Find this feature in menu "Tools"
-    register_menu("Audio/Export G729", dialog_menu, MENU_TOOLS_UNSORTED)
+    register_menu("Audio/Export G729", dialog_default, MENU_TOOLS_UNSORTED)
 end
