@@ -9,36 +9,8 @@ do
     local version_num = version_str and tonumber(version_str) or 5.1
     local bit = (version_num >= 5.2) and require("bit32") or require("bit")
 
-    local ps_stream_type_vals = {
-        [0x10] = "MPEG-4 Video",
-        [0x1b] = "H.264",
-        [0x24] = "H.265",
-        [0x80] = "SVAC Video",
-        [0x90] = "G.711",
-        [0x92] = "G.722.1",
-        [0x93] = "G.723.1",
-        [0x99] = "G.729",
-        [0x9b] = "SVAC Audio",
-    }
-    local file_stream_type_vals = {
-        [0x10] = ".mpge-4",
-        [0x1b] = ".264",
-        [0x24] = ".265",
-        [0x80] = ".SVACVideo",
-        [0x90] = ".g711",
-        [0x92] = ".g722",
-        [0x93] = ".g723",
-        [0x99] = ".g729",
-        [0x9b] = ".SVACAudio",
-    }
-    local function get_enum_name(list, index)
-        local value = list[index]
-        return value and value or ""
-    end
-
     -- for geting ps data (the field's value is type of ByteArray)
-    local f_pes_data = Field.new("ps.pes.data_bytes")
-    local f_stream_type = Field.new("ps.program_map.map.stream_type")
+    local f_ps = Field.new("ps")
 
     local filter_string = nil
 
@@ -77,77 +49,36 @@ do
             key = key:gsub(":", ".")
             local stream_info = stream_infos[key]
             if not stream_info then -- if not exists, create one
-                if f_stream_type() and f_stream_type().value then
-                    local stream_type = f_stream_type().value
-                    local streamType = get_enum_name(ps_stream_type_vals, stream_type)
-                    local fileType = get_enum_name(file_stream_type_vals, stream_type)
-                    twappend("streamType="..streamType.." fileType="..fileType)
-                    stream_info = { }
-                    stream_info.streamtype = streamType
-                    stream_info.filename = key.. fileType
-                    -- stream_info.filepath = stream_info.filename
-                    -- stream_info.file,msg = io.open(stream_info.filename, "wb")
-                    local tmp = persconffile_path('tmp')
-                    if not Dir.exists(tmp) then
-                        Dir.make(tmp)
-                    end
-                    stream_info.filepath = tmp.."/"..stream_info.filename
-                    stream_info.file,msg = io.open(tmp.."/"..stream_info.filename, "wb")
-                    if msg then
-                        twappend("io.open "..stream_info.filepath..", error "..msg)
-                    end
-                    -- twappend("Output file path:" .. stream_info.filepath)
-                    stream_info.counter = 0 -- counting ps total NALUs
-                    stream_info.counter2 = 0 -- for second time running
-                    stream_infos[key] = stream_info
-                    twappend("Ready to export PS data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
-                            .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " write to file:[" .. stream_info.filename .. "] ...")
+                stream_info = { }
+                stream_info.filename = key.. ".ps"
+                -- stream_info.filepath = stream_info.filename
+                -- stream_info.file,msg = io.open(stream_info.filename, "wb")
+                local tmp = persconffile_path('tmp')
+                if not Dir.exists(tmp) then
+                    Dir.make(tmp)
                 end
+                stream_info.filepath = tmp.."/"..stream_info.filename
+                stream_info.file,msg = io.open(tmp.."/"..stream_info.filename, "wb")
+                if msg then
+                    twappend("io.open "..stream_info.filepath..", error "..msg)
+                end
+                -- twappend("Output file path:" .. stream_info.filepath)
+                stream_info.counter = 0 -- counting ps total NALUs
+                stream_info.counter2 = 0 -- for second time running
+                stream_infos[key] = stream_info
+                twappend("Ready to export PS data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
+                        .. " to " .. tostring(pinfo.dst) .. ":" .. tostring(pinfo.dst_port) .. " write to file:[" .. stream_info.filename .. "] ...")
             end
             return stream_info
         end
         
         -- write a NALU or part of NALU to file.
-        local function write_to_file(stream_info, str_bytes, type)
+        local function write_to_file(stream_info, str_bytes)
             if first_run then
                 stream_info.counter = stream_info.counter + 1
                 
-                -- save SPS or PPS
-                if ((str_bytes:byte(0,1)==0x00) and (str_bytes:byte(1,1)==0x00)
-                    and (str_bytes:byte(2,1)==0x00) and (str_bytes:byte(3,1)==0x01)) then
-                    if "H.264"==type then
-                        local nalu_type = bit.band(str_bytes:byte(4,1), 0x1F)
-                        if not stream_info.sps and nalu_type == 7 then
-                            stream_info.sps = str_bytes
-                        elseif not stream_info.pps and nalu_type == 8 then
-                            stream_info.pps = str_bytes
-                        end
-                    elseif "H.265"==type then
-                        local nalu_type = bit.rshift(bit.band(str_bytes:byte(1,1), 0x7e),1)
-                        if not stream_info.sps and nalu_type == 33 then
-                            stream_info.sps = str_bytes
-                        elseif not stream_info.pps and nalu_type == 34 then
-                            stream_info.pps = str_bytes
-                        end
-                    end
-                end
-                
             else -- second time running
                 
-                if stream_info.counter2 == 0 then
-                    -- write SPS and PPS to file header first
-                    if stream_info.sps then
-                        stream_info.file:write(stream_info.sps)
-                    else
-                        twappend("Not found SPS for [" .. stream_info.filename .. "], it might not be played!")
-                    end
-                    if stream_info.pps then
-                        stream_info.file:write(stream_info.pps)
-                    else
-                        twappend("Not found PPS for [" .. stream_info.filename .. "], it might not be played!")
-                    end
-                end
-            
                 stream_info.file:write(str_bytes)
                 stream_info.counter2 = stream_info.counter2 + 1
 
@@ -164,16 +95,16 @@ do
                 -- not triggered by button event, so do nothing.
                 return
             end
-            local datas = { f_pes_data() } -- using table because one packet may contains more than one RTP
+            local datas = { f_ps() } -- using table because one packet may contains more than one RTP
             
             for i,data_f in ipairs(datas) do
-                if data_f.len < 5 then
-                    return
-                end
+                -- if data_f.len < 5 then
+                --     return
+                -- end
                 local data = data_f.range:bytes()
                 local stream_info = get_stream_info(pinfo)
                 if stream_info then
-                    write_to_file(stream_info, data:tvb():raw(), stream_info.streamtype)
+                    write_to_file(stream_info, data:tvb():raw())
                 end
             end
         end
