@@ -20,9 +20,6 @@
 do
     -- 解析为SILK音频部分
     local proto_silk = Proto("silk", "Audio SILK")
- 
-    local prefs = proto_silk.prefs
-    prefs.dyn_pt = Pref.uint("SILK dynamic payload type", 0, "The value > 95")
 
     -- Wireshark对每个相关数据包调用该函数
     -- tvb:Testy Virtual Buffer报文缓存; pinfo:packet infomarmation报文信息; treeitem:解析树节点
@@ -32,31 +29,57 @@ do
         proto_tree:append_text(string.format(" (Len: %d)",tvb:len()))
         pinfo.columns.protocol = "SILK"
     end
+    
+    -- set this protocal preferences
+    local prefs = proto_silk.prefs
+    prefs.dyn_pt = Pref.range("SILK dynamic payload type", "", "Dynamic payload types which will be interpreted as SILK; Values must be in the range 96 - 127", 127)
 
     -- register this dissector to dynamic payload type dissectorTable
     local dyn_payload_type_table = DissectorTable.get("rtp_dyn_payload_type")
     dyn_payload_type_table:add("silk", proto_silk)
 
     -- register this dissector to specific payload type (specified in preferences windows)
-    -- local payload_type_table = DissectorTable.get("rtp.pt")
-    -- local old_dissector = nil
-    -- local old_dyn_pt = 0
-    -- function proto_silk.init()
-    --     if (prefs.dyn_pt ~= old_dyn_pt) then
-    --         if (old_dyn_pt > 0) then -- reset old dissector
-    --             if (old_dissector == nil) then -- just remove this proto
-    --                 payload_type_table:remove(old_dyn_pt, proto_silk)
-    --             else  -- replace this proto with old proto on old payload type
-    --                 payload_type_table:add(old_dyn_pt, old_dissector)
-    --             end
-    --         end
-    --         old_dyn_pt = prefs.dyn_pt  -- save current payload type's dissector
-    --         old_dissector = payload_type_table:get_dissector(old_dyn_pt)
-    --         if (prefs.dyn_pt > 0) then
-    --             payload_type_table:add(prefs.dyn_pt, proto_silk)
-    --         end
-    --     end
-    -- end
+    local payload_type_table = DissectorTable.get("rtp.pt")
+    local old_dyn_pt = nil
+    local old_dissector = nil
+    
+    function proto_silk.init()
+        if (prefs.dyn_pt ~= old_dyn_pt) then
+            if old_dyn_pt ~= nil and string.len(old_dyn_pt) > 0 then -- reset old dissector
+                local pt_number = tonumber(old_dyn_pt)
+                if (old_dissector == nil) then -- just remove this proto
+                    payload_type_table:remove(pt_number, proto_silk)
+                else  -- replace this proto with old proto on old payload type
+                    payload_type_table:add(pt_number, old_dissector)
+                end
+            end
+            old_dyn_pt = prefs.dyn_pt  -- save current payload type's dissector
+            
+            if string.len(prefs.dyn_pt) > 0 then
+                local pt_number = tonumber(prefs.dyn_pt)
+                old_dissector = payload_type_table:get_dissector(pt_number)
+                payload_type_table:add(pt_number, proto_silk)
+            end
+        end
+    end
+
+    function get_temp_path()
+        local tmp = nil
+        if tmp == nil or tmp == '' then
+            tmp = os.getenv('HOME')
+            if tmp == nil or tmp == '' then
+                tmp = os.getenv('USERPROFILE')
+                if tmp == nil or tmp == '' then
+                    tmp = persconffile_path('temp')
+                else
+                    tmp = tmp .. "/wireshark_temp"
+                end
+            else
+                tmp = tmp .. "/wireshark_temp"
+            end
+        end
+        return tmp
+    end
 
     -- 导出数据到文件部分
     -- for geting data (the field's value is type of ByteArray)
@@ -74,6 +97,9 @@ do
             tw:append(str)
             tw:append("\n")
         end
+
+        -- temp path
+        local temp_path = get_temp_path()
         
         -- variable for storing rtp stream and dumping parameters
         local stream_infos = nil
@@ -98,7 +124,15 @@ do
             if not stream_info then -- if not exists, create one
                 stream_info = { }
                 stream_info.filename = key.. ".silk"
-                stream_info.file = io.open(stream_info.filename, "wb")
+                -- stream_info.file = io.open(stream_info.filename, "wb")
+                if not Dir.exists(temp_path) then
+                    Dir.make(temp_path)
+                end
+                stream_info.filepath = temp_path.."/"..stream_info.filename
+                stream_info.file,msg = io.open(temp_path.."/"..stream_info.filename, "wb")
+                if msg then
+                    twappend("io.open "..stream_info.filepath..", error "..msg)
+                end
                 stream_info.file:write("\x02\x23\x21\x53\x49\x4C\x4B\x5F\x56\x33")  -- #!SILK_V3 first 02 is for wx
                 stream_infos[key] = stream_info
                 twappend("Ready to export data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
@@ -143,13 +177,15 @@ do
                         stream.file:flush()
                         stream.file:close()
                         stream.file = nil
-                        twappend("File [" .. stream.filename .. "] generated OK!\n")
+                        twappend("File [" .. stream.filename .. "] generated OK!")
                         no_streams = false
                     end
                 end
                 
                 if no_streams then
                     twappend("Not found any Data over RTP streams!")
+                else
+                    tw:add_button("Browser", function () browser_open_data_file(temp_path) end)
                 end
             end
         end
@@ -160,9 +196,8 @@ do
         
         tw:set_atclose(function ()
             my_tap:remove()
-            local tmp = persconffile_path('tmp')
-            if Dir.exists(tmp) then
-                Dir.remove_all(tmp)
+            if Dir.exists(temp_path) then
+                Dir.remove_all(temp_path)
             end
         end)
         

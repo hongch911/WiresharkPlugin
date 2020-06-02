@@ -11,6 +11,24 @@ do
     local version_num = version_str and tonumber(version_str) or 5.1
     local bit = (version_num >= 5.2) and require("bit32") or require("bit")
 
+    function get_temp_path()
+        local tmp = nil
+        if tmp == nil or tmp == '' then
+            tmp = os.getenv('HOME')
+            if tmp == nil or tmp == '' then
+                tmp = os.getenv('USERPROFILE')
+                if tmp == nil or tmp == '' then
+                    tmp = persconffile_path('temp')
+                else
+                    tmp = tmp .. "/wireshark_temp"
+                end
+            else
+                tmp = tmp .. "/wireshark_temp"
+            end
+        end
+        return tmp
+    end
+
     -- for geting h264 data (the field's value is type of ByteArray)
     local f_h264 = Field.new("h264") 
     local f_rtp = Field.new("rtp") 
@@ -30,6 +48,9 @@ do
             tw:append(str)
             tw:append("\n")
         end
+        
+        -- temp path
+        local temp_path = get_temp_path()
         
         -- running first time for counting and finding sps+pps, second time for real saving
         local first_run = true 
@@ -58,12 +79,11 @@ do
                 stream_info.filename = key.. ".264"
                 -- stream_info.filepath = stream_info.filename
                 -- stream_info.file,msg = io.open(stream_info.filename, "wb")
-                local tmp = persconffile_path('tmp')
-                if not Dir.exists(tmp) then
-                    Dir.make(tmp)
+                if not Dir.exists(temp_path) then
+                    Dir.make(temp_path)
                 end
-                stream_info.filepath = tmp.."/"..stream_info.filename
-                stream_info.file,msg = io.open(tmp.."/"..stream_info.filename, "wb")
+                stream_info.filepath = temp_path.."/"..stream_info.filename
+                stream_info.file,msg = io.open(temp_path.."/"..stream_info.filename, "wb")
                 if msg then
                     twappend("io.open "..stream_info.filepath..", error "..msg)
                 end
@@ -201,7 +221,7 @@ do
                         stream.file = nil
                         index = index + 1
                         twappend(index .. ": [" .. stream.filename .. "] generated OK!")
-                        local anony_fuc = function ()
+                        local anony_fuc = function()
                             twappend("ffplay -x 640 -y 640 -autoexit "..stream.filename)
                             copy_to_clipboard("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
                             os.execute("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
@@ -214,7 +234,7 @@ do
                 if no_streams then
                     twappend("Not found any H.264 over RTP streams!")
                 else
-                    tw:add_button("Browser", function () browser_open_data_file(persconffile_path('tmp')) end)
+                    tw:add_button("Browser", function () browser_open_data_file(temp_path) end)
                 end
             end
         end
@@ -225,9 +245,8 @@ do
         
         tw:set_atclose(function ()
             my_h264_tap:remove()
-            local tmp = persconffile_path('tmp')
-            if Dir.exists(tmp) then
-                Dir.remove_all(tmp)
+            if Dir.exists(temp_path) then
+                Dir.remove_all(temp_path)
             end
         end)
         

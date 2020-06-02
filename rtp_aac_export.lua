@@ -1,30 +1,52 @@
--- Dump RTP PCM payload to raw file
+-- Dump RTP AAC payload to raw file
 -- Write it to from<sourceIp_sourcePort>to<dstIp_dstPort> file.
 -- You can access this feature by menu "Tools"
 -- Author: Yang Xing (hongch_911@126.com)
 ------------------------------------------------------------------------------------------------
 do
-    local proto_pcm = Proto("pcma", "PCMA")
-    
-    local fp_payload = ProtoField.bytes("pcma.payload", "Raw")
-    
-    proto_pcm.fields = {
-        fp_payload
-    }
+    -- Ω‚ŒˆŒ™AAC“Ù∆µ≤ø∑÷
+    local proto_aac = Proto("aac", "Audio AAC")
 
-    -- WiresharkÂØπÊØè‰∏™Áõ∏ÂÖ≥Êï∞ÊçÆÂåÖË∞ÉÁî®ËØ•ÂáΩÊï∞
-    -- tvb:Testy Virtual BufferÊä•ÊñáÁºìÂ≠ò; pinfo:packet infomarmationÊä•Êñá‰ø°ÊÅØ; treeitem:Ëß£ÊûêÊ†ëËäÇÁÇπ
-    function proto_pcm.dissector(tvb, pinfo, tree)
+    -- Wireshark∂‘√ø∏ˆœ‡πÿ ˝æ›∞¸µ˜”√∏√∫Ø ˝
+    -- tvb:Testy Virtual Buffer±®Œƒª∫¥Ê; pinfo:packet infomarmation±®Œƒ–≈œ¢; treeitem:Ω‚Œˆ ˜Ω⁄µ„
+    function proto_aac.dissector(tvb, pinfo, tree)
         -- add proto item to tree
-        local proto_tree = tree:add(proto_pcm, tvb())
+        local proto_tree = tree:add(proto_aac, tvb())
         proto_tree:append_text(string.format(" (Len: %d)",tvb:len()))
-        pinfo.columns.protocol = "PCMA"
+        pinfo.columns.protocol = "AAC"
     end
+    
+    -- set this protocal preferences
+    local prefs = proto_aac.prefs
+    prefs.dyn_pt = Pref.range("AAC dynamic payload type", "", "Dynamic payload types which will be interpreted as AAC; Values must be in the range 96 - 127", 127)
+
+    -- register this dissector to dynamic payload type dissectorTable
+    local dyn_payload_type_table = DissectorTable.get("rtp_dyn_payload_type")
+    dyn_payload_type_table:add("aac", proto_aac)
 
     -- register this dissector to specific payload type (specified in preferences windows)
     local payload_type_table = DissectorTable.get("rtp.pt")
-    function proto_pcm.init()
-        payload_type_table:add(8, proto_pcm)
+    local old_dyn_pt = nil
+    local old_dissector = nil
+    
+    function proto_aac.init()
+        if (prefs.dyn_pt ~= old_dyn_pt) then
+            if old_dyn_pt ~= nil and string.len(old_dyn_pt) > 0 then -- reset old dissector
+                local pt_number = tonumber(old_dyn_pt)
+                if (old_dissector == nil) then -- just remove this proto
+                    payload_type_table:remove(pt_number, proto_aac)
+                else  -- replace this proto with old proto on old payload type
+                    payload_type_table:add(pt_number, old_dissector)
+                end
+            end
+            old_dyn_pt = prefs.dyn_pt  -- save current payload type's dissector
+            
+            if string.len(prefs.dyn_pt) > 0 then
+                local pt_number = tonumber(prefs.dyn_pt)
+                old_dissector = payload_type_table:get_dissector(pt_number)
+                payload_type_table:add(pt_number, proto_aac)
+            end
+        end
     end
 
     function get_temp_path()
@@ -45,9 +67,9 @@ do
         return tmp
     end
 
-    -- ÂØºÂá∫Êï∞ÊçÆÂà∞Êñá‰ª∂ÈÉ®ÂàÜ
+    -- µº≥ˆ ˝æ›µΩŒƒº˛≤ø∑÷
     -- for geting data (the field's value is type of ByteArray)
-    local f_data = Field.new("pcma")
+    local f_data = Field.new("aac")
 
     local filter_string = nil
 
@@ -71,11 +93,11 @@ do
         -- trigered by all ps packats
         local list_filter = ''
         if filter_string == nil or filter_string == '' then
-            list_filter = "pcma"
-        elseif string.find(filter_string,"pcma")~=nil then
+            list_filter = "aac"
+        elseif string.find(filter_string,"aac")~=nil then
             list_filter = filter_string
         else
-            list_filter = "pcma && "..filter_string
+            list_filter = "aac && "..filter_string
         end
         twappend("Listener filter: " .. list_filter .. "\n")
         local my_tap = Listener.new("frame", list_filter)
@@ -87,7 +109,7 @@ do
             local stream_info = stream_infos[key]
             if not stream_info then -- if not exists, create one
                 stream_info = { }
-                stream_info.filename = key.. ".pcma.raw"
+                stream_info.filename = key.. ".aac"
                 -- stream_info.file = io.open(stream_info.filename, "wb")
                 if not Dir.exists(temp_path) then
                     Dir.make(temp_path)
@@ -106,6 +128,10 @@ do
         
         -- write data to file.
         local function write_to_file(stream_info, data_bytes)
+            local len = data_bytes:len()
+            local b1=string.char(len%256) len=(len-len%256)/256
+            local b2=string.char(len%256) len=(len-len%256)/256
+            stream_info.file:write(b1,b2)
             stream_info.file:write(data_bytes:raw())
         end
         
@@ -137,7 +163,6 @@ do
                         stream.file:close()
                         stream.file = nil
                         twappend("File [" .. stream.filename .. "] generated OK!")
-                        twappend("ffplay -ar 8000 -ac 1 -f s16le -acodec pcm_alaw -autoexit "..stream.filename)
                         no_streams = false
                     end
                 end
@@ -193,5 +218,5 @@ do
     end
     
     -- Find this feature in menu "Tools"
-    register_menu("Audio/Export PCMA", dialog_default, MENU_TOOLS_UNSORTED)
+    register_menu("Audio/Export AAC", dialog_default, MENU_TOOLS_UNSORTED)
 end

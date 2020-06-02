@@ -556,25 +556,25 @@ do
 
     -- register this dissector to specific payload type (specified in preferences windows)
     local payload_type_table = DissectorTable.get("rtp.pt")
-    local dyn_pt_number = nil
     local old_dyn_pt = nil
     local old_dissector = nil
     
     function proto_ps.init()
         if (prefs.dyn_pt ~= old_dyn_pt) then
-            if (old_dyn_pt ~= nil) then -- reset old dissector
+            if old_dyn_pt ~= nil and string.len(old_dyn_pt) > 0 then -- reset old dissector
+                local pt_number = tonumber(old_dyn_pt)
                 if (old_dissector == nil) then -- just remove this proto
-                    payload_type_table:remove(old_dyn_pt, proto_ps)
+                    payload_type_table:remove(pt_number, proto_ps)
                 else  -- replace this proto with old proto on old payload type
-                    payload_type_table:add(old_dyn_pt, old_dissector)
+                    payload_type_table:add(pt_number, old_dissector)
                 end
             end
             old_dyn_pt = prefs.dyn_pt  -- save current payload type's dissector
             
             if string.len(prefs.dyn_pt) > 0 then
-                dyn_pt_number = tonumber(prefs.dyn_pt)
-                old_dissector = payload_type_table:get_dissector(dyn_pt_number)
-                payload_type_table:add(dyn_pt_number, proto_ps)
+                local pt_number = tonumber(prefs.dyn_pt)
+                old_dissector = payload_type_table:get_dissector(pt_number)
+                payload_type_table:add(pt_number, proto_ps)
             end
         end
     end

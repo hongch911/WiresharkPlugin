@@ -11,6 +11,25 @@
 -- Author: Yang Xing (hongch_911@126.com)
 ------------------------------------------------------------------------------------------------
 do
+
+    function get_temp_path()
+        local tmp = nil
+        if tmp == nil or tmp == '' then
+            tmp = os.getenv('HOME')
+            if tmp == nil or tmp == '' then
+                tmp = os.getenv('USERPROFILE')
+                if tmp == nil or tmp == '' then
+                    tmp = persconffile_path('temp')
+                else
+                    tmp = tmp .. "/wireshark_temp"
+                end
+            else
+                tmp = tmp .. "/wireshark_temp"
+            end
+        end
+        return tmp
+    end
+
     -- 导出数据到文件部分
     local version_str = string.match(_VERSION, "%d+[.]%d*")
     local version_num = version_str and tonumber(version_str) or 5.1
@@ -45,6 +64,9 @@ do
             tw:append(str)
             tw:append("\n")
         end
+
+        -- temp path
+        local temp_path = get_temp_path()
         
         -- variable for storing rtp stream and dumping parameters
         local stream_infos = nil
@@ -69,7 +91,15 @@ do
             if not stream_info then -- if not exists, create one
                 stream_info = { }
                 stream_info.filename = key.. ".amr"
-                stream_info.file = io.open(stream_info.filename, "wb")
+                -- stream_info.file = io.open(stream_info.filename, "wb")
+                if not Dir.exists(temp_path) then
+                    Dir.make(temp_path)
+                end
+                stream_info.filepath = temp_path.."/"..stream_info.filename
+                stream_info.file,msg = io.open(temp_path.."/"..stream_info.filename, "wb")
+                if msg then
+                    twappend("io.open "..stream_info.filepath..", error "..msg)
+                end
                 stream_info.file:write("\x23\x21\x41\x4d\x52\x0a")  -- "#!AMR\n"
                 stream_infos[key] = stream_info
                 twappend("Ready to export data (RTP from " .. tostring(pinfo.src) .. ":" .. tostring(pinfo.src_port) 
@@ -127,7 +157,7 @@ do
                         stream.file:flush()
                         stream.file:close()
                         stream.file = nil
-                        twappend("File [" .. stream.filename .. "] generated OK!\n")
+                        twappend("File [" .. stream.filename .. "] generated OK!")
                         twappend("ffplay -f amr -acodec amrnb -autoexit "..stream.filename)
                         no_streams = false
                     end
@@ -135,6 +165,8 @@ do
                 
                 if no_streams then
                     twappend("Not found any Data over RTP streams!")
+                else
+                    tw:add_button("Browser", function () browser_open_data_file(temp_path) end)
                 end
             end
         end
@@ -147,9 +179,8 @@ do
         
         tw:set_atclose(function ()
             my_tap:remove()
-            local tmp = persconffile_path('tmp')
-            if Dir.exists(tmp) then
-                Dir.remove_all(tmp)
+            if Dir.exists(temp_path) then
+                Dir.remove_all(temp_path)
             end
         end)
         
