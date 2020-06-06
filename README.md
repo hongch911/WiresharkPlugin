@@ -12,13 +12,10 @@ rtp_pcma_export.lua、rtp_pcmu_export.lua、rtp_silk_export.lua、rtp_g729_expor
 
 加载插件方法：
 
-(不推荐)1：在Wireshark安装路径下的init.lua文件中加载插件，为了避免每次添加lua插件文件时都修改init.lua文件，建议在init.lua文件中使用如下方式自动扫描相关目录下的所有lua插件进行自动加载。
-```lua
---dofile(DATA_DIR.."dtd_gen.lua")
-for filename in Dir.open(USER_DIR, ".lua") do 
-    dofile(USER_DIR..filename)
-end
-```
-该方法可以把插件存放在任意目录下，只要dofile中指定该插件目录即可。
+在Wireshark的About(关于)页面Folders(文件夹)目录下Personal plugins(个人Lua插件)对应的目录下存放所需的插件。在该方法中，插件只能存放在指定的目录下，且不能识别该目录下的子目录。
 
-2：在Wireshark的About(关于)页面Folders(文件夹)目录下Personal plugins(个人Lua插件)对应的目录下存放所需的插件。在该方法中，插件只能存放在指定的目录下，且不能识别该目录下的子目录。
+被插件使用ffmpeg可执行程序，可以直接播放导出后的媒体文件。
+
+下载ffmpeg可执行程序的网址见https://ffmpeg.zeranoe.com/builds/
+
+本地存放好ffmpeg可执行程序后，需要把ffmpeg目录设置到系统变量PATH路径中。

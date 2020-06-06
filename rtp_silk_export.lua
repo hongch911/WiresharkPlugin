@@ -29,7 +29,7 @@ do
         proto_tree:append_text(string.format(" (Len: %d)",tvb:len()))
         pinfo.columns.protocol = "SILK"
     end
-    
+
     -- set this protocal preferences
     local prefs = proto_silk.prefs
     prefs.dyn_pt = Pref.range("SILK dynamic payload type", "", "Dynamic payload types which will be interpreted as SILK; Values must be in the range 96 - 127", 127)
@@ -45,22 +45,49 @@ do
     
     function proto_silk.init()
         if (prefs.dyn_pt ~= old_dyn_pt) then
-            if old_dyn_pt ~= nil and string.len(old_dyn_pt) > 0 then -- reset old dissector
-                local pt_number = tonumber(old_dyn_pt)
-                if (old_dissector == nil) then -- just remove this proto
-                    payload_type_table:remove(pt_number, proto_silk)
-                else  -- replace this proto with old proto on old payload type
-                    payload_type_table:add(pt_number, old_dissector)
+            -- reset old dissector
+            if (old_dyn_pt ~= nil and string.len(old_dyn_pt) > 0) then
+                local pt_numbers = getArray(tostring(old_dyn_pt))
+                for index,pt_number in pairs(pt_numbers) do
+                    -- replace this proto with old proto on old payload type
+                    if old_dissector ~= nil and old_dissector[index] ~= nil then
+                        payload_type_table:add(pt_number, old_dissector[index])
+                    else -- just remove this proto
+                        payload_type_table:remove(pt_number, proto_silk)
+                    end
                 end
             end
+            
             old_dyn_pt = prefs.dyn_pt  -- save current payload type's dissector
             
-            if string.len(prefs.dyn_pt) > 0 then
-                local pt_number = tonumber(prefs.dyn_pt)
-                old_dissector = payload_type_table:get_dissector(pt_number)
-                payload_type_table:add(pt_number, proto_silk)
+            if (prefs.dyn_pt ~= nil and string.len(prefs.dyn_pt) > 0) then
+                local pt_numbers = getArray(tostring(prefs.dyn_pt))
+                old_dissector = {}
+                for index,pt_number in pairs(pt_numbers) do
+                    local dissector = payload_type_table:get_dissector(pt_number)
+                    -- table.insert(old_dissector,index,dissector)
+                    old_dissector[index] = dissector
+                    payload_type_table:add(pt_number, proto_silk)
+                end
             end
         end
+    end
+
+    function getArray(str)
+        local strList = {}
+        string.gsub(str, '[^,]+',function (w)
+            local pos = string.find(w,'-')
+            if not pos then
+                table.insert(strList,tonumber(w))
+            else
+                local begin_index = string.sub(w,1,pos-1)
+                local end_index = string.sub(w,pos+1,#w)
+                for index = begin_index,end_index do
+                    table.insert(strList,index)
+                end
+            end
+        end)
+        return strList
     end
 
     function get_temp_path()
