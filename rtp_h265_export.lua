@@ -224,7 +224,7 @@ do
                         twappend(index .. ": [" .. stream.filename .. "] generated OK!")
                         local anony_fuc = function ()
                             twappend("ffplay -x 640 -y 640 -autoexit "..stream.filename)
-                            copy_to_clipboard("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
+                            --copy_to_clipboard("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
                             os.execute("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
                         end
                         tw:add_button("Play "..index, anony_fuc)

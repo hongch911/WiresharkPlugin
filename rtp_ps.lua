@@ -20,6 +20,31 @@ do
         [0x99] = "G.729",
         [0x9b] = "SVAC Audio",
     }
+    local ps_stream_id_vals = {
+        [0xbc] = "Program Stream Map",
+        [0xbd] = "Private Stream-1",
+        [0xbe] = "Padding Stream",
+        [0xbf] = "Private Stream-2",
+        -- [0xc0 .. 0xdf] = "Audio stream",
+        -- [0xe0 .. 0xef] = "Video stream",
+        [0xf0] = "ECM Stream",
+        [0xf1] = "EMM Stream",
+        [0xf2] = "DSMCC Stream",
+        [0xf3] = "ISO/IEC 13522 Stream",
+        [0xf4] = "ITU-T Rec. H.222.1 Type A",
+        [0xf5] = "ITU-T Rec. H.222.1 Type B",
+        [0xf6] = "ITU-T Rec. H.222.1 Type C",
+        [0xf7] = "ITU-T Rec. H.222.1 Type D",
+        [0xf8] = "ITU-T Rec. H.222.1 Type E",
+        [0xf9] = "Ancillary Stream",
+        [0xff] = "Program Stream Directory",
+    }
+    for i=0xc0,0xdf do
+        ps_stream_id_vals[i] = "Audio stream"
+    end
+    for i=0xe0,0xef do
+        ps_stream_id_vals[i] = "Video stream"
+    end
     local h264_nal_unit_type_vals = {
         [0] = "Unspecified",
         [1] = "Coded slice of a non-IDR picture",
@@ -97,7 +122,7 @@ do
         [21] = "Coded slice segment of a CRA picture",
         [22] = "Reserved IRAP VCL NAL unit types",
         [23] = "Reserved IRAP VCL NAL unit types",
-        [24 .. 31] = "Reserved non-IRAP VCL NAL unit types",
+        -- [24 .. 31] = "Reserved non-IRAP VCL NAL unit types",
         [32] = "Video parameter set",
         [33] = "Sequence parameter set",
         [34] = "Picture parameter set",
@@ -110,6 +135,15 @@ do
         [40 .. 47] = "Reserved",
         [48 .. 63] = "Unspecified"
     }
+    for i=24,31 do
+        h265_nal_unit_type_vals[i] = "Reserved non-IRAP VCL NAL unit types"
+    end
+    for i=41,47 do
+        h265_nal_unit_type_vals[i] = "Reserved"
+    end
+    for i=48,63 do
+        h265_nal_unit_type_vals[i] = "Unspecified"
+    end
     local h265_type_summary_values = {
         [0] = "non-TSA, non-STSA",
         [1] = "non-TSA, non-STSA",
@@ -135,7 +169,7 @@ do
         [21] = "CRAe",
         [22] = "IRAP-VCL",
         [23] = "IRAP-VCL",
-        [24 .. 31] = "non-IRAP-VCL",
+        -- [24 .. 31] = "non-IRAP-VCL",
         [32] = "VPS",
         [33] = "SPS",
         [34] = "PPS",
@@ -148,6 +182,15 @@ do
         [40 .. 47] = "Reserved",
         [48 .. 63] = "Unspecified"
     }
+    for i=24,31 do
+        h265_type_summary_values[i] = "non-IRAP-VCL"
+    end
+    for i=41,47 do
+        h265_type_summary_values[i] = "Reserved"
+    end
+    for i=48,63 do
+        h265_type_summary_values[i] = "Unspecified"
+    end
     local function get_enum_name(list, index)
         local value = list[index]
         return value and value or string.format("Unknown (%d)",index)
@@ -174,26 +217,26 @@ do
     local ps_system_header_system_video_lock_flag = ProtoField.new("System video lock flag", "ps.system_header.system_video_lock_flag", ftypes.UINT8, nil, base.DEC, 0x40)
     local ps_system_header_vedio_bound = ProtoField.new("Vedio bound", "ps.system_header.vedio_bound", ftypes.UINT8, nil, base.DEC, 0x1f)
     local ps_system_header_packet_rate_restriction_flag = ProtoField.new("Packet rate restriction flag", "ps.system_header.packet_rate_restriction_flag", ftypes.UINT8, nil, base.DEC, 0x80)
-    local ps_system_header_stream_id = ProtoField.new("Stream ID", "ps.system_header.stream_id", ftypes.UINT8, nil, base.HEX)
+    local ps_system_header_stream_id = ProtoField.new("Stream ID", "ps.system_header.stream_id", ftypes.UINT8, ps_stream_id_vals, base.HEX)
     local ps_system_header_P_STD_scale = ProtoField.new("P-STD buffer bound scale", "ps.system_header.buffer_bound_scale", ftypes.UINT16, nil, base.DEC, 0x2000)
     local ps_system_header_P_STD_bound = ProtoField.new("P-STD buffer size bound", "ps.system_header.buffer_size_bound", ftypes.UINT16, nil, base.DEC, 0x1fff)
 
     local ps_program_stream = ProtoField.none("ps.program_map", "Program Stream Map")
     local ps_program_stream_start_code = ProtoField.bytes("ps.program_map.start_code", "Start code", base.SPACE)
-    local ps_program_stream_id = ProtoField.new("Stream ID", "ps.program_map.stream_id", ftypes.UINT8, nil, base.HEX)
+    local ps_program_stream_id = ProtoField.new("Stream ID", "ps.program_map.stream_id", ftypes.UINT8, ps_stream_id_vals, base.HEX)
     local ps_program_stream_length = ProtoField.new("Header length", "ps.program_map.header_length", ftypes.UINT16, nil, base.DEC)
     local ps_program_stream_current_next_indicator = ProtoField.new("Current next indicator", "ps.program_map.current_next_indicator", ftypes.UINT8, nil, base.DEC, 0x80)
     local ps_program_stream_map_version = ProtoField.new("Version", "ps.program_map.version", ftypes.UINT8, nil, base.DEC, 0x1f)
     local ps_program_stream_info_length = ProtoField.new("Info length", "ps.program_map.info_length", ftypes.UINT16, nil, base.DEC)
     local ps_program_stream_map_length = ProtoField.new("Map length", "ps.program_map.map_length", ftypes.UINT16, nil, base.DEC)
-    local ps_program_stream_map_stream_type = ProtoField.new("Stream type", "ps.program_map.map.stream_type", ftypes.UINT8, ps_stream_type_vals, base.DEC)
-    local ps_program_stream_map_stream_id = ProtoField.new("Stream ID", "ps.program_map.map.stream_id", ftypes.UINT8, nil, base.HEX)
-    local ps_program_stream_map_info_length = ProtoField.new("Stream info length", "ps.program_map.map.stream_info_length", ftypes.UINT16, nil, base.DEC)
+    local ps_program_stream_map_stream_type = ProtoField.new("Elementary Stream type", "ps.program_map.map.stream_type", ftypes.UINT8, ps_stream_type_vals, base.DEC)
+    local ps_program_stream_map_stream_id = ProtoField.new("Elementary Stream ID", "ps.program_map.map.stream_id", ftypes.UINT8, ps_stream_id_vals, base.HEX)
+    local ps_program_stream_map_info_length = ProtoField.new("Elementary Stream info length", "ps.program_map.map.stream_info_length", ftypes.UINT16, nil, base.DEC)
     local ps_program_stream_CRC = ProtoField.bytes("ps.program_map.crc", "CRC", base.SPACE)
     
     local ps_pes = ProtoField.none("ps.pes", "PES Packet")
     local ps_pes_start_code = ProtoField.bytes("ps.pes.start_code", "Start code", base.SPACE)
-    local ps_pes_stream_id = ProtoField.new("Stream ID", "ps.pes.stream_id", ftypes.UINT8, nil, base.HEX)
+    local ps_pes_stream_id = ProtoField.new("Stream ID", "ps.pes.stream_id", ftypes.UINT8, ps_stream_id_vals, base.HEX)
     local ps_pes_length = ProtoField.new("Length", "ps.pes.packet_length", ftypes.UINT16, nil, base.DEC)
     local ps_pes_scrambing_control = ProtoField.new("Scrambing control", "ps.pes.scrambing_control", ftypes.UINT8, nil, base.DEC, 0x30)
     local ps_pes_priority = ProtoField.new("Priority", "ps.pes.priority", ftypes.UINT8, nil, base.DEC, 0x08)
@@ -245,7 +288,6 @@ do
     -- local frame_num = Field.new("frame.number")
     -- variable for storing stream info
     local stream_info_map = {}
-    local stream_info_follow = nil
 
     function is_ps_header(tvb, offset)
         if (tvb:len() < (offset+4)) then
@@ -462,9 +504,6 @@ do
 
         local stream_id = tvb:range(offset+3,1):uint()
         local stream_id_name = stream_info_map[stream_id]
-        if stream_id_name then
-            stream_info_follow = stream_id_name
-        end
 
         -- Start code 3, stream id 1, packet length 2, scrambing|PTS 2, Header length 1
         if offset+9+pes_header_data_len>=tvb_len then
@@ -474,18 +513,23 @@ do
         -- Raw data
         local current_len = complete_packet and (pes_length-3-pes_header_data_len) or (tvb_len-offset-9-pes_header_data_len)
         local media_raw_tree = ps_pes_tree:add(ps_pes_data_bytes, tvb:range(offset+9+pes_header_data_len, current_len))
-        media_raw_tree:set_text(stream_info_follow)
-        media_raw_tree:append_text(string.format(" (%d)",current_len))
+        if stream_id_name then
+            media_raw_tree:set_text(stream_id_name)
+            media_raw_tree:append_text(string.format(" (%d)",current_len))
+        else
+            media_raw_tree:set_text(string.format("0x%x",stream_id))
+            media_raw_tree:append_text(string.format(" (%d)",current_len))
+        end
 
         local shif = offset+9+pes_header_data_len+4
-        if "H.264" == stream_info_follow then
+        if "H.264" == stream_id_name then
             media_raw_tree:add(h264_f_bit, tvb:range(shif,1))
             media_raw_tree:add(h264_nal_ref_idc, tvb:range(shif,1))
             media_raw_tree:add(h264_nal_unit_type, tvb:range(shif,1))
             local type = tvb:range(shif,1):bitfield(3, 5)
             pinfo.columns.info:append(" ")
             pinfo.columns.info:append(get_enum_name(h264_type_summary_values, type))
-        elseif "H.265" == stream_info_follow then
+        elseif "H.265" == stream_id_name then
             media_raw_tree:add(h265_f_bit, tvb:range(shif,2))
             media_raw_tree:add(h265_nal_unit_type, tvb:range(shif,2))
             media_raw_tree:add(h265_nal_layer_id, tvb:range(shif,2))
@@ -496,54 +540,76 @@ do
         end
         
     end
-    function dis_raw_data(tvb, tree, offset, pinfo)
-        local tvb_len = tvb:len()
-        local media_raw_tree = tree:add(ps_pes_data_bytes, tvb:range(offset, tvb_len-offset))
-        if stream_info_follow then
-            media_raw_tree:set_text(stream_info_follow)
-        end
-        media_raw_tree:append_text(string.format(" (%d)",tvb_len-offset))
-    end
+
+    local lastNumber = 0
+    local tempArray = nil
+    local completeRTP = {}
+
     -- PS dissector for rtp payload
     function proto_ps.dissector(tvb, pinfo, tree)
         -- local frame_seqs = frame_num()
         -- if (frame_seqs.value == 1)
+        
+        if pinfo.visited == false then
+            if (is_ps_header(tvb, 0)) then
+                tempArray = nil
+            end
+            if (tempArray == nil) then
+                tempArray = ByteArray.new()
+                tempArray:append(tvb:bytes())
+            else
+                tempArray:append(tvb:bytes())
+            end
+            completeRTP[pinfo.number] = tempArray
+            if (is_ps_header(tvb, 0) == false) then
+                if (lastNumber > 0) then
+                    completeRTP[lastNumber] = nil
+                end
+            end
+            lastNumber = pinfo.number
+
+            return
+        end
 
         -- add proto item to tree
-        local proto_tree = tree:add(proto_ps, tvb())
-        local offset = 0
-        
-        if (is_ps_header(tvb, offset)) then
-            local stuffing_size = tvb:range(offset+13,1):bitfield(5, 3)
-            dis_ps_packet_header(tvb, proto_tree, offset)
-            offset = offset + 14 + stuffing_size
+        if (completeRTP[pinfo.number] ~= nil) then
+            local rtp_tvb = completeRTP[pinfo.number]:tvb()
+            local proto_tree = tree:add(proto_ps, rtp_tvb:range())
+            local offset = 0
 
-            if (is_system_header(tvb, offset)) then
-                local system_header_length = tvb:range(offset+4, 2):uint()
-                dis_system_header(tvb, proto_tree, offset)
-                offset = offset + 4 + 2 + system_header_length
+            if (is_ps_header(rtp_tvb, offset)) then
+                local stuffing_size = rtp_tvb:range(offset+13,1):bitfield(5, 3)
+                dis_ps_packet_header(rtp_tvb, proto_tree, offset)
+                offset = offset + 14 + stuffing_size
+
+                if (is_system_header(rtp_tvb, offset)) then
+                    local system_header_length = rtp_tvb:range(offset+4, 2):uint()
+                    dis_system_header(rtp_tvb, proto_tree, offset)
+                    offset = offset + 4 + 2 + system_header_length
+                    
+                    -- program stream map
+                    local program_map_length = rtp_tvb:range(offset+4, 2):uint()
+                    dis_stream_map(rtp_tvb, proto_tree, offset)
+                    offset = offset + 4 + 2 + program_map_length
+                end
                 
-                -- program stream map
-                local program_map_length = tvb:range(offset+4, 2):uint()
-                dis_stream_map(tvb, proto_tree, offset)
-                offset = offset + 4 + 2 + program_map_length
+                while (is_pes_header(rtp_tvb, offset))
+                do
+                    local pes_length = rtp_tvb:range(offset+4, 2):uint()
+                    dis_pes(rtp_tvb, proto_tree, offset, pinfo)
+                    offset = offset + 4 + 2 + pes_length
+                end
+            else
+                while (is_pes_header(rtp_tvb, offset))
+                do
+                    local pes_length = rtp_tvb:range(offset+4, 2):uint()
+                    dis_pes(rtp_tvb, proto_tree, offset, pinfo)
+                    offset = offset + 4 + 2 + pes_length
+                end
             end
             
-            while (is_pes_header(tvb, offset))
-            do
-                local pes_length = tvb:range(offset+4, 2):uint()
-                dis_pes(tvb, proto_tree, offset, pinfo)
-                offset = offset + 4 + 2 + pes_length
-            end
-        else
-            if (is_pes_header(tvb, offset)) then
-                dis_pes(tvb, proto_tree, offset, pinfo)
-            else
-                dis_raw_data(tvb, proto_tree, offset, pinfo)
-            end
+            pinfo.columns.protocol = "PS"
         end
-        
-        pinfo.columns.protocol = "PS"
     end
 
     -- set this protocal preferences
