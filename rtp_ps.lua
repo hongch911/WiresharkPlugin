@@ -561,6 +561,7 @@ do
                 tempArray:append(tvb:bytes())
             end
             completeRTP[pinfo.number] = tempArray
+            -- clean not complete buffer
             if (is_ps_header(tvb, 0) == false) then
                 if (lastNumber > 0) then
                     completeRTP[lastNumber] = nil
@@ -608,6 +609,8 @@ do
                 end
             end
             
+            pinfo.columns.protocol = "PS"
+        else
             pinfo.columns.protocol = "PS"
         end
     end
