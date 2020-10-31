@@ -45,152 +45,7 @@ do
     for i=0xe0,0xef do
         ps_stream_id_vals[i] = "Video stream"
     end
-    local h264_nal_unit_type_vals = {
-        [0] = "Unspecified",
-        [1] = "Coded slice of a non-IDR picture",
-        [2] = "Coded slice data partition A",
-        [3] = "Coded slice data partition B",
-        [4] = "Coded slice data partition C",
-        [5] = "Coded slice of an IDR picture",
-        [6] = "Supplemental enhancement information (SEI)",
-        [7] = "Sequence parameter set",
-        [8] = "Picture parameter set",
-        [9] = "Access unit delimiter",
-        [10] = "End of sequence",
-        [11] = "End of stream",
-        [12] = "Filler data",
-        [13] = "Sequence parameter set extension",
-        [14] = "Prefix",
-        [15] = "Subset sequence parameter set",
-        [16] = "Reserved",
-        [17] = "Reserved",
-        [18] = "Reserved",
-        [19] = "Coded slice of an auxiliary coded picture without partitioning",
-        [20] = "Coded slice extension",
-        [21] = "Coded slice extension for depth view components",
-        [22] = "Reserved",
-        [23] = "Reserved"
-    }
-    local h264_type_summary_values = {
-        [0] = "Undefined",
-        [1] = "non-IDR-Slice",
-        [2] = "Slice-A",
-        [3] = "Slice-B",
-        [4] = "Slice-C",
-        [5] = "IDR-Slice",
-        [6] = "SEI",
-        [7] = "SPS",
-        [8] = "PPS",
-        [9] = "AUD",
-        [10] = "End-of-Seq",
-        [11] = "End-of-Stream",
-        [12] = "Filler",
-        [13] = "SPS-Ext",
-        [14] = "Prefix",
-        [15] = "Subset-SPS",
-        [16] = "Reserved",
-        [17] = "Reserved",
-        [18] = "Reserved",
-        [19] = "Slice-Aux",
-        [20] = "Slice-Ext",
-        [21] = "Slice-Ext-Depth",
-        [22] = "Reserved",
-        [23] = "Reserved"
-    }
-    local h265_nal_unit_type_vals = {
-        [0] = "Coded slice segment of a non-TSA, non-STSA trailing picture",
-        [1] = "Coded slice segment of a non-TSA, non-STSA trailing picture",
-        [2] = "Coded slice segment of a TSA picture",
-        [3] = "Coded slice segment of a TSA picture",
-        [4] = "Coded slice segment of an STSA picture",
-        [5] = "Coded slice segment of an STSA picture",
-        [6] = "Coded slice segment of a RADL picture",
-        [7] = "Coded slice segment of a RADL picture",
-        [8] = "Coded slice segment of a RASL picture",
-        [9] = "Coded slice segment of a RASL picture",
-        [10] = "Reserved non-IRAP SLNR VCL NAL unit types",
-        [11] = "Reserved non-IRAP sub-layer reference VCL NAL unit types",
-        [12] = "Reserved non-IRAP SLNR VCL NAL unit types",
-        [13] = "Reserved non-IRAP sub-layer reference VCL NAL unit types",
-        [14] = "Reserved non-IRAP SLNR VCL NAL unit types",
-        [15] = "Reserved non-IRAP sub-layer reference VCL NAL unit types",
-        [16] = "Coded slice segment of a BLA picture",
-        [17] = "Coded slice segment of a BLA picture",
-        [18] = "Coded slice segment of a BLA picture",
-        [19] = "Coded slice segment of an IDR picture",
-        [20] = "Coded slice segment of an IDR picture",
-        [21] = "Coded slice segment of a CRA picture",
-        [22] = "Reserved IRAP VCL NAL unit types",
-        [23] = "Reserved IRAP VCL NAL unit types",
-        -- [24 .. 31] = "Reserved non-IRAP VCL NAL unit types",
-        [32] = "Video parameter set",
-        [33] = "Sequence parameter set",
-        [34] = "Picture parameter set",
-        [35] = "Access unit delimiter",
-        [36] = "End of sequence",
-        [37] = "End of bitstream",
-        [38] = "Filler data",
-        [39] = "Prefix Supplemental enhancement information",
-        [40] = "Suffix Supplemental enhancement information",
-        [40 .. 47] = "Reserved",
-        [48 .. 63] = "Unspecified"
-    }
-    for i=24,31 do
-        h265_nal_unit_type_vals[i] = "Reserved non-IRAP VCL NAL unit types"
-    end
-    for i=41,47 do
-        h265_nal_unit_type_vals[i] = "Reserved"
-    end
-    for i=48,63 do
-        h265_nal_unit_type_vals[i] = "Unspecified"
-    end
-    local h265_type_summary_values = {
-        [0] = "non-TSA, non-STSA",
-        [1] = "non-TSA, non-STSA",
-        [2] = "TSA",
-        [3] = "TSA",
-        [4] = "STSA",
-        [5] = "STSA",
-        [6] = "RADL",
-        [7] = "RADL",
-        [8] = "RASL",
-        [9] = "RASL",
-        [10] = "non-IRAP-SLNR-VCL",
-        [11] = "non-IRAP-sub-layer",
-        [12] = "non-IRAP-SLNR",
-        [13] = "non-IRAP-sub-layer",
-        [14] = "non-IRAP-SLNR",
-        [15] = "non-IRAP-sub-layer",
-        [16] = "BLA",
-        [17] = "BLA",
-        [18] = "BLA",
-        [19] = "IDR",
-        [20] = "IDR",
-        [21] = "CRAe",
-        [22] = "IRAP-VCL",
-        [23] = "IRAP-VCL",
-        -- [24 .. 31] = "non-IRAP-VCL",
-        [32] = "VPS",
-        [33] = "SPS",
-        [34] = "PPS",
-        [35] = "AUD",
-        [36] = "End-of-Seq",
-        [37] = "End-of-Stream",
-        [38] = "Filler",
-        [39] = "Prefix-SEI",
-        [40] = "Suffix-SEI",
-        [40 .. 47] = "Reserved",
-        [48 .. 63] = "Unspecified"
-    }
-    for i=24,31 do
-        h265_type_summary_values[i] = "non-IRAP-VCL"
-    end
-    for i=41,47 do
-        h265_type_summary_values[i] = "Reserved"
-    end
-    for i=48,63 do
-        h265_type_summary_values[i] = "Unspecified"
-    end
+    
     local function get_enum_name(list, index)
         local value = list[index]
         return value and value or string.format("Unknown (%d)",index)
@@ -261,20 +116,7 @@ do
     local ps_pes_crc = ProtoField.new("CRC", "ps.pes.crc", ftypes.UINT16, nil, base.HEX)
     local ps_pes_extension = ProtoField.new("Extension", "ps.pes.extension", ftypes.UINT8, nil, base.HEX)
     local ps_pes_data_bytes = ProtoField.bytes("ps.pes.data_bytes", "Data bytes")
-    local ps_data = ProtoField.bytes("ps.data", "Data")
-
-    local h26x_f_bit_vals = {
-        [1] = "Bit errors or other syntax violations",
-        [0] = "No bit errors or other syntax violations"
-    }
-    local h264_f_bit = ProtoField.new("F bit", "ps.pes.h264.f", ftypes.UINT8, h26x_f_bit_vals, base.DEC, 0x80)
-    local h264_nal_ref_idc = ProtoField.new("Nal_ref_idc (NRI)", "ps.pes.h264.layerid", ftypes.UINT8, nil, base.DEC, 0x60)
-    local h264_nal_unit_type = ProtoField.new("Type", "ps.pes.h264.nal_unit_type", ftypes.UINT8, h264_nal_unit_type_vals, base.DEC, 0x1f)
-
-    local h265_f_bit = ProtoField.new("F bit", "ps.pes.h265.f", ftypes.UINT16, h26x_f_bit_vals, base.DEC, 0x8000)
-    local h265_nal_unit_type = ProtoField.new("Type", "ps.pes.h265.nal_unit_type", ftypes.UINT16, h265_nal_unit_type_vals, base.DEC, 0x7E00)
-    local h265_nal_layer_id = ProtoField.new("Layer ID", "ps.pes.h265.layerid", ftypes.UINT16, nil, base.DEC, 0x01F8)
-    local h265_nal_temporal_id = ProtoField.new("TID", "ps.pes.h265.tid", ftypes.UINT16, nil, base.DEC, 0x0007)
+    -- local ps_data = ProtoField.bytes("ps.data", "Data")
     
     proto_ps.fields = {
         ps_hdr,ps_start_code,ps_scr_base,ps_scr_ext,ps_multiplex_rate,ps_stuffing_length,ps_stuffing_bytes,
@@ -282,10 +124,29 @@ do
         ps_program_stream,ps_program_stream_start_code,ps_program_stream_id,ps_program_stream_length,ps_program_stream_current_next_indicator,ps_program_stream_map_version,ps_program_stream_info_length,ps_program_stream_map_length,ps_program_stream_map_stream_type,ps_program_stream_map_stream_id,ps_program_stream_map_info_length,ps_program_stream_CRC,
         ps_pes,ps_pes_start_code,ps_pes_stream_id,ps_pes_length,ps_pes_scrambing_control,ps_pes_priority,ps_pes_alignment,ps_pes_copyright,ps_pes_original,ps_pes_pts_dts_flag,ps_pes_escr_flag,ps_pes_es_rate_flag,ps_pes_dsm_trick_mode_flag,ps_pes_additional_info_flag,ps_pes_crc_flag,ps_pes_extension_flag,
         ps_pes_header_data_length,ps_pes_header_data_bytes,ps_pes_pts,ps_pes_dts,ps_pes_escr,ps_pes_es_rate,ps_pes_dsm_trick_mode,ps_pes_additional_info,ps_pes_crc,ps_pes_extension,ps_pes_data_bytes,
-        ps_data,h264_f_bit,h264_nal_ref_idc,h264_nal_unit_type,h265_f_bit,h265_nal_unit_type,h265_nal_layer_id,h265_nal_temporal_id
+        -- ps_data
     }
 
+    function isInTable(item, tbl)
+        for k,v in ipairs(tbl) do
+            if v == item then
+                return true
+            end
+        end
+        return false
+    end
+
     -- local frame_num = Field.new("frame.number")
+    local h264_dis = Dissector.get("h264")
+    local h265_dis = Dissector.get("h265")
+    local pcma_dis = nil
+    local pcmu_dis = nil
+    if isInTable("pcma", Dissector.list()) then
+        pcma_dis = Dissector.get("pcma")
+    end
+    if isInTable("pcmu", Dissector.list()) then
+        pcmu_dis = Dissector.get("pcmu")
+    end
     -- variable for storing stream info
     local stream_info_map = {}
 
@@ -510,33 +371,27 @@ do
             return
         end
 
-        -- Raw data
-        local current_len = complete_packet and (pes_length-3-pes_header_data_len) or (tvb_len-offset-9-pes_header_data_len)
-        local media_raw_tree = ps_pes_tree:add(ps_pes_data_bytes, tvb:range(offset+9+pes_header_data_len, current_len))
-        if stream_id_name then
-            media_raw_tree:set_text(stream_id_name)
-            media_raw_tree:append_text(string.format(" (%d)",current_len))
-        else
-            media_raw_tree:set_text(string.format("0x%x",stream_id))
-            media_raw_tree:append_text(string.format(" (%d)",current_len))
-        end
-
-        local shif = offset+9+pes_header_data_len+4
+        local date_len = complete_packet and (pes_length-3-pes_header_data_len) or (tvb_len-offset-9-pes_header_data_len)
+        local shif = offset+9+pes_header_data_len
+        local dec_tvb = tvb:bytes(shif,date_len):tvb()
         if "H.264" == stream_id_name then
-            media_raw_tree:add(h264_f_bit, tvb:range(shif,1))
-            media_raw_tree:add(h264_nal_ref_idc, tvb:range(shif,1))
-            media_raw_tree:add(h264_nal_unit_type, tvb:range(shif,1))
-            local type = tvb:range(shif,1):bitfield(3, 5)
-            pinfo.columns.info:append(" ")
-            pinfo.columns.info:append(get_enum_name(h264_type_summary_values, type))
+            -- h264/h265 not contain start code 00 00 00 01
+            h264_dis:call(dec_tvb:bytes(4):tvb(), pinfo, ps_pes_tree)
         elseif "H.265" == stream_id_name then
-            media_raw_tree:add(h265_f_bit, tvb:range(shif,2))
-            media_raw_tree:add(h265_nal_unit_type, tvb:range(shif,2))
-            media_raw_tree:add(h265_nal_layer_id, tvb:range(shif,2))
-            media_raw_tree:add(h265_nal_temporal_id, tvb:range(shif,2))
-            local type = tvb:range(shif,2):bitfield(1, 6)
-            pinfo.columns.info:append(" ")
-            pinfo.columns.info:append(get_enum_name(h265_type_summary_values, type))
+            h265_dis:call(dec_tvb:bytes(4):tvb(), pinfo, ps_pes_tree)
+        elseif "G.711A" == stream_id_name and pcma_dis ~= nil then
+            pcma_dis:call(dec_tvb, pinfo, ps_pes_tree)
+        elseif "G.711U" == stream_id_name and pcmu_dis ~= nil then
+            pcmu_dis:call(dec_tvb, pinfo, ps_pes_tree)
+        else
+            local media_raw_tree = ps_pes_tree:add(ps_pes_data_bytes, tvb:range(offset+9+pes_header_data_len, date_len))
+            if stream_id_name then
+                media_raw_tree:set_text(stream_id_name)
+                media_raw_tree:append_text(string.format(" (%d)",date_len))
+            else
+                media_raw_tree:set_text(string.format("0x%x",stream_id))
+                media_raw_tree:append_text(string.format(" (%d)",date_len))
+            end
         end
         
     end

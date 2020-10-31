@@ -9,7 +9,7 @@ rtp_h264_export.lua用于解析RTP包中的H264编码数据。本插件参考作
 
 rtp_h265_export.lua用于解析RTP包中的H265编码数据，并提取裸数据到码流文件中。
 
-rtp_ps.lua和rtp_ps_export.lua插件用于实现对PS媒体流进行解析及导出ps裸流到文件中。
+rtp_ps.lua和rtp_ps_export.lua插件用于实现对PS媒体流进行解析及导出ps裸流到文件中。同时也可以直接使用ps中的相应媒体协议导出媒体数据流。
 
 rtp_pcma_export.lua、rtp_pcmu_export.lua、rtp_silk_export.lua、rtp_g729_export.lua、rtp_amr_export.lua等插件用于对RTP流中的相应格式的音频流进行解析并导出成文件。
 
