@@ -29,6 +29,8 @@ rtp_pcma_export.lua、rtp_pcmu_export.lua、rtp_silk_export.lua、rtp_g729_expor
 
 # ffmpeg二进制文件下载
 
-下载ffmpeg可执行程序的见https://ffmpeg.zeranoe.com/builds/
+下载ffmpeg可执行程序的见
+https://github.com/tomaszzmuda/Xabe.FFmpeg/releases
+https://johnvansickle.com/ffmpeg/
 
 请选择相应的操作系统二进制文件。
