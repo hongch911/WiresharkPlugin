@@ -4,11 +4,11 @@
 -- Author: Yang Xing (hongch_911@126.com)
 ------------------------------------------------------------------------------------------------
 do
-    -- ½âÎöÎªAACÒôÆµ²¿·Ö
+    -- è§£æä¸ºAACéŸ³é¢‘éƒ¨åˆ†
     local proto_aac = Proto("aac", "Audio AAC")
 
-    -- Wireshark¶ÔÃ¿¸öÏà¹ØÊı¾İ°üµ÷ÓÃ¸Ãº¯Êı
-    -- tvb:Testy Virtual Buffer±¨ÎÄ»º´æ; pinfo:packet infomarmation±¨ÎÄĞÅÏ¢; treeitem:½âÎöÊ÷½Úµã
+    -- Wiresharkå¯¹æ¯ä¸ªç›¸å…³æ•°æ®åŒ…è°ƒç”¨è¯¥å‡½æ•°
+    -- tvb:Testy Virtual BufferæŠ¥æ–‡ç¼“å­˜; pinfo:packet infomarmationæŠ¥æ–‡ä¿¡æ¯; treeitem:è§£ææ ‘èŠ‚ç‚¹
     function proto_aac.dissector(tvb, pinfo, tree)
         -- add proto item to tree
         local proto_tree = tree:add(proto_aac, tvb())
@@ -94,7 +94,7 @@ do
         return tmp
     end
 
-    -- µ¼³öÊı¾İµ½ÎÄ¼ş²¿·Ö
+    -- å¯¼å‡ºæ•°æ®åˆ°æ–‡ä»¶éƒ¨åˆ†
     -- for geting data (the field's value is type of ByteArray)
     local f_data = Field.new("aac")
 
