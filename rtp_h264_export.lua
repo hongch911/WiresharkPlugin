@@ -11,6 +11,13 @@ do
     local version_num = version_str and tonumber(version_str) or 5.1
     local bit = (version_num >= 5.2) and require("bit32") or require("bit")
 
+    function string.starts(String,Start)
+        return string.sub(String,1,string.len(Start))==Start
+     end
+     
+     function string.ends(String,End)
+        return End=='' or string.sub(String,-string.len(End))==End
+     end
     function get_temp_path()
         local tmp = nil
         if tmp == nil or tmp == '' then
@@ -24,6 +31,20 @@ do
                 end
             else
                 tmp = tmp .. "/wireshark_temp"
+            end
+        end
+        return tmp
+    end
+    function get_ffmpeg_path()
+        local tmp = nil
+        if tmp == nil or tmp == '' then
+            tmp = os.getenv('FFMPEG')
+            if tmp == nil or tmp == '' then
+                tmp = ""
+            else
+                if not string.ends(tmp, "/bin/") then
+                    tmp = tmp .. "/bin/"
+                end
             end
         end
         return tmp
@@ -49,11 +70,13 @@ do
             tw:append("\n")
         end
         
+        local ffmpeg_path = get_ffmpeg_path()
         -- temp path
         local temp_path = get_temp_path()
         
         -- running first time for counting and finding sps+pps, second time for real saving
         local first_run = true 
+        local writed_nalu_begin = false
         -- variable for storing rtp stream and dumping parameters
         local stream_infos = nil
 
@@ -103,7 +126,7 @@ do
                 stream_info.counter = stream_info.counter + 1
                 
                 if begin_with_nalu_hdr then
-                    -- save SPS or PPS
+                    -- save SPS PPS
                     local nalu_type = bit.band(str_bytes:byte(0,1), 0x1F)
                     if not stream_info.sps and nalu_type == 7 then
                         stream_info.sps = str_bytes
@@ -113,20 +136,31 @@ do
                 end
                 
             else -- second time running
+
+                if not writed_nalu_begin then
+                    if begin_with_nalu_hdr then
+                        writed_nalu_begin = true
+                    else
+                        return
+                    end
+                end
                 
                 if stream_info.counter2 == 0 then
-                    -- write SPS and PPS to file header first
-                    if stream_info.sps then
-                        stream_info.file:write("\x00\x00\x00\x01")
-                        stream_info.file:write(stream_info.sps)
-                    else
-                        twappend("Not found SPS for [" .. stream_info.filename .. "], it might not be played!")
-                    end
-                    if stream_info.pps then
-                        stream_info.file:write("\x00\x00\x00\x01")
-                        stream_info.file:write(stream_info.pps)
-                    else
-                        twappend("Not found PPS for [" .. stream_info.filename .. "], it might not be played!")
+                    local nalu_type = bit.band(str_bytes:byte(0,1), 0x1F)
+                    if nalu_type ~= 7 then
+                        -- write SPS and PPS to file header first
+                        if stream_info.sps then
+                            stream_info.file:write("\x00\x00\x00\x01")
+                            stream_info.file:write(stream_info.sps)
+                        else
+                            twappend("Not found SPS for [" .. stream_info.filename .. "], it might not be played!")
+                        end
+                        if stream_info.pps then
+                            stream_info.file:write("\x00\x00\x00\x01")
+                            stream_info.file:write(stream_info.pps)
+                        else
+                            twappend("Not found PPS for [" .. stream_info.filename .. "], it might not be played!")
+                        end
                     end
                 end
             
@@ -224,7 +258,7 @@ do
                         local anony_fuc = function ()
                             twappend("ffplay -x 640 -y 640 -autoexit "..stream.filename)
                             --copy_to_clipboard("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
-                            os.execute("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
+                            os.execute(ffmpeg_path.."ffplay -x 640 -y 640 -autoexit "..stream.filepath)
                         end
                         tw:add_button("Play "..index, anony_fuc)
                         no_streams = false

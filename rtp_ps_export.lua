@@ -26,6 +26,20 @@ do
         end
         return tmp
     end
+    function get_ffmpeg_path()
+        local tmp = nil
+        if tmp == nil or tmp == '' then
+            tmp = os.getenv('FFMPEG')
+            if tmp == nil or tmp == '' then
+                tmp = ""
+            else
+                if not string.ends(tmp, "/bin/") then
+                    tmp = tmp .. "/bin/"
+                end
+            end
+        end
+        return tmp
+    end
 
     -- for geting ps data (the field's value is type of ByteArray)
     local f_ps = Field.new("ps")
@@ -44,6 +58,7 @@ do
             tw:append("\n")
         end
         
+        local ffmpeg_path = get_ffmpeg_path()
         -- temp path
         local temp_path = get_temp_path()
         
@@ -145,7 +160,7 @@ do
                         local anony_fuc = function ()
                             twappend("ffplay -x 640 -y 640 -autoexit "..stream.filename)
                             --copy_to_clipboard("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
-                            os.execute("ffplay -x 640 -y 640 -autoexit "..stream.filepath)
+                            os.execute(ffmpeg_path.."ffplay -x 640 -y 640 -autoexit "..stream.filepath)
                         end
                         tw:add_button("Play "..index, anony_fuc)
                         no_streams = false
