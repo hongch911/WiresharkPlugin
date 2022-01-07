@@ -9,7 +9,9 @@ rtp_h264_export.lua用于解析RTP包中的H264编码数据。本插件参考作
 
 rtp_h265_export.lua用于解析RTP包中的H265编码数据，并提取裸数据到码流文件中。
 
-rtp_ps.lua和rtp_ps_export.lua插件用于实现对PS媒体流进行解析及导出ps裸流到文件中。同时也可以直接使用ps中的相应媒体协议导出媒体数据流。
+rtp_ps_assemble.lua通过把ps流组装完整后解析数据。
+
+rtp_ps_export.lua插件用于实现对PS媒体流进行解析及导出ps裸流到文件中。同时也可以直接使用ps中的相应媒体协议导出媒体数据流。
 
 rtp_pcma_export.lua、rtp_pcmu_export.lua、rtp_silk_export.lua、rtp_g729_export.lua、rtp_amr_export.lua等插件用于对RTP流中的相应格式的音频流进行解析并导出成文件。
 
@@ -24,7 +26,7 @@ rtp_pcma_export.lua、rtp_pcmu_export.lua、rtp_silk_export.lua、rtp_g729_expor
 如果需要在插件中直接播放媒体，需要使用到ffmpeg程序。
 
 为了在Wireshark中直接点击插件对话框的 play 按钮进行播放，需要额外准备ffmpeg可执行程序。
-把下载的ffmpeg可执行程序解压后，需设置好系统变量，以便命令行可以直接执行ffmpeg -version，并正常输出ffmpeg信息。
+把下载的ffmpeg可执行程序解压后，需设置好系统变量 FFMPEG=<ffmpeg bin所在目录> ，以便可以直接执行 $FFMPEG/bin/ffmpeg -version或者(%FFMPEG%/bin/ffmpeg -version) ，并正常输出ffmpeg信息。
 
 
 # ffmpeg二进制文件下载
