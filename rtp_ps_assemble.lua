@@ -51,6 +51,10 @@ do
         return value and value or string.format("Unknown (%d)",index)
     end
     
+    local function get_int64_string(high_int32, low_int32)
+        return string.format("%x%x",high_int32,low_int32)
+    end
+    
     local proto_ps = Proto("ps", "PS")
     
     local ps_hdr = ProtoField.none("ps.pack_header", "PS Header")
@@ -276,7 +280,7 @@ do
         -- PES header
         local pes_length = tvb:range(offset+4, 2):uint()
         local tvb_len = tvb:len()
-        local complete_packet = tvb_len>(offset+pes_length+6)
+        local complete_packet = tvb_len>=(offset+pes_length+6)
         local ps_pes_tree = tree:add(ps_pes, tvb:range(offset,complete_packet and (pes_length+4+2) or (tvb_len-offset)))
         ps_pes_tree:add(ps_pes_start_code, tvb:range(offset,3))
         ps_pes_tree:add(ps_pes_stream_id, tvb:range(offset+3,1))
@@ -298,41 +302,55 @@ do
 
         local pes_header_data_len = tvb:range(offset+8, 1):uint()
         local header_data_tree = ps_pes_tree:add(ps_pes_header_data_length, tvb:range(offset+8,1))
-        pes_length_tree:append_text(string.format(" (data Len: %u)",pes_length-pes_header_data_len-3))
+        if complete_packet then
+            pes_length_tree:append_text(string.format(" (Data Len: %u)",pes_length-pes_header_data_len-3))
+        else
+            pes_length_tree:append_text(string.format(" (Data Len: %u|Actual Len: %u)",pes_length-pes_header_data_len-3,tvb_len-offset-9-pes_header_data_len))
+        end
+        
         if pes_header_data_len>0 then
             header_data_tree:add(ps_pes_header_data_bytes, tvb:range(offset+9,pes_header_data_len))
 
             local index = offset+9
             local pts_dts_flag = tvb:range(offset+7,1):bitfield(0,2)
             if pts_dts_flag == 0x2 then
-                local pts_1 = tvb:range(index,1):bitfield(4,3)
+                -- local pts_1 = tvb:range(index,1):bitfield(4,3)
+                local pts_high = tvb:range(index,1):bitfield(4,1)
+                local pts_1 = tvb:range(index,1):bitfield(5,2)
                 local pts_2 = tvb:range(index+1,2):bitfield(0,15)
                 local pts_3 = tvb:range(index+3,2):bitfield(0,15)
                 local pts = bit.lshift(pts_1,30)+bit.lshift(pts_2,15)+pts_3
-                ps_pes_tree:add(ps_pes_pts, tvb:range(index,5)):append_text(string.format(": %u",pts))
+                -- ps_pes_tree:add(ps_pes_pts, tvb:range(index,5)):append_text(string.format(": %u",pts))
+                ps_pes_tree:add(ps_pes_pts, tvb:range(index,5)):append_text(string.format(": 0x%s",get_int64_string(pts_high,pts)))
                 index = index + 5
             elseif pts_dts_flag == 0x3 then
-                local pts_1 = tvb:range(index,1):bitfield(4,3)
+                -- local pts_1 = tvb:range(index,1):bitfield(4,3)
+                local pts_high = tvb:range(index,1):bitfield(4,1)
+                local pts_1 = tvb:range(index,1):bitfield(5,2)
                 local pts_2 = tvb:range(index+1,2):bitfield(0,15)
                 local pts_3 = tvb:range(index+3,2):bitfield(0,15)
                 local pts = bit.lshift(pts_1,30)+bit.lshift(pts_2,15)+pts_3
-                ps_pes_tree:add(ps_pes_pts, tvb:range(index,5)):append_text(string.format(": %u",pts))
+                ps_pes_tree:add(ps_pes_pts, tvb:range(index,5)):append_text(string.format(": 0x%s",get_int64_string(pts_high,pts)))
 
-                local dts_1 = tvb:range(index+5,1):bitfield(4,3)
+                -- local dts_1 = tvb:range(index+5,1):bitfield(4,3)
+                local dts_high = tvb:range(index+5,1):bitfield(4,1)
+                local dts_1 = tvb:range(index+5,1):bitfield(5,2)
                 local dts_2 = tvb:range(index+6,2):bitfield(0,15)
                 local dts_3 = tvb:range(indext+8,2):bitfield(0,15)
                 local dts = bit.lshift(dts_1,30)+bit.lshift(dts_2,15)+dts_3
-                ps_pes_tree:add(ps_pes_dts, tvb:range(index+5,5)):append_text(string.format(": %u",dts))
+                ps_pes_tree:add(ps_pes_dts, tvb:range(index+5,5)):append_text(string.format(": 0x%s",get_int64_string(dts_high,dts)))
                 index = index + 10
             end
             local escr_flag = tvb:range(offset+7,1):bitfield(2,1)
             if escr_flag == 1 then
-                local escr_1 = tvb:range(index,1):bitfield(2,3)
+                -- local escr_1 = tvb:range(index,1):bitfield(2,3)
+                local escr_high = tvb:range(index,1):bitfield(2,1)
+                local escr_1 = tvb:range(index,1):bitfield(3,2)
                 local escr_2 = tvb:range(index,3):bitfield(6,15)
                 local escr_3 = tvb:range(index+2,3):bitfield(6,15)
                 local escr_e = tvb:range(index+4,2):bitfield(6,9)
                 local escr = bit.lshift(escr_1,30)+bit.lshift(escr_2,15)+escr_3
-                ps_pes_tree:add(ps_pes_escr, tvb:range(index,6)):append_text(string.format(": %u, extension: %u",escr,escr_e))
+                ps_pes_tree:add(ps_pes_escr, tvb:range(index,6)):append_text(string.format(": 0x%s, extension: %u",get_int64_string(escr_high,escr),escr_e))
                 index = index + 6
             end
             local es_rate_flag = tvb:range(offset+7,1):bitfield(3,1)
