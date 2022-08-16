@@ -336,7 +336,7 @@ do
                 local dts_high = tvb:range(index+5,1):bitfield(4,1)
                 local dts_1 = tvb:range(index+5,1):bitfield(5,2)
                 local dts_2 = tvb:range(index+6,2):bitfield(0,15)
-                local dts_3 = tvb:range(indext+8,2):bitfield(0,15)
+                local dts_3 = tvb:range(index+8,2):bitfield(0,15)
                 local dts = bit.lshift(dts_1,30)+bit.lshift(dts_2,15)+dts_3
                 ps_pes_tree:add(ps_pes_dts, tvb:range(index+5,5)):append_text(string.format(": 0x%s",get_int64_string(dts_high,dts)))
                 index = index + 10
