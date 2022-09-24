@@ -74,11 +74,16 @@ do
         -- temp path
         local temp_path = get_temp_path()
         
-        -- running first time for counting and finding sps+pps, second time for real saving
+        -- running first time for counting and finding sps+pps, second time for real saving (to string),
+        -- will write to file on third time.
         local first_run = true 
         local writed_nalu_begin = false
         -- variable for storing rtp stream and dumping parameters
         local stream_infos = nil
+
+        local rtp_pkts = {}
+        local min_rtp_seq = -1
+        local max_rtp_seq = -1
 
         -- trigered by all h264 packats
         local list_filter = ''
@@ -92,10 +97,15 @@ do
         twappend("Listener filter: " .. list_filter .. "\n")
         local my_h264_tap = Listener.new("frame", list_filter)
         
-        -- get rtp stream info by src and dst address
-        function get_stream_info(pinfo)
+        function get_stream_info_key(pinfo)
             local key = "from_" .. tostring(pinfo.src) .. "_" .. tostring(pinfo.src_port) .. "_to_" .. tostring(pinfo.dst) .. "_" .. tostring(pinfo.dst_port)
             key = key:gsub(":", ".")
+            return key
+        end
+
+        -- get rtp stream info by src and dst address
+        function get_stream_info(pinfo)
+            local key = get_stream_info_key(pinfo)
             local stream_info = stream_infos[key]
             if not stream_info then -- if not exists, create one
                 stream_info = { }
@@ -121,7 +131,7 @@ do
         end
         
         -- write a NALU or part of NALU to file.
-        local function write_to_file(stream_info, str_bytes, begin_with_nalu_hdr, end_of_nalu)
+        local function write_to_file(stream_info, rtp_seq, str_bytes, begin_with_nalu_hdr, end_of_nalu)
             if first_run then
                 stream_info.counter = stream_info.counter + 1
                 
@@ -134,9 +144,7 @@ do
                         stream_info.pps = str_bytes
                     end
                 end
-                
             else -- second time running
-
                 if not writed_nalu_begin then
                     if begin_with_nalu_hdr then
                         writed_nalu_begin = true
@@ -150,14 +158,12 @@ do
                     if nalu_type ~= 7 then
                         -- write SPS and PPS to file header first
                         if stream_info.sps then
-                            stream_info.file:write("\x00\x00\x00\x01")
-                            stream_info.file:write(stream_info.sps)
+                            rtp_pkts[rtp_seq]["stream_data"] = rtp_pkts[rtp_seq]["stream_data"].."\x00\x00\x00\x01"..stream_info.sps
                         else
                             twappend("Not found SPS for [" .. stream_info.filename .. "], it might not be played!")
                         end
                         if stream_info.pps then
-                            stream_info.file:write("\x00\x00\x00\x01")
-                            stream_info.file:write(stream_info.pps)
+                            rtp_pkts[rtp_seq]["stream_data"] = rtp_pkts[rtp_seq]["stream_data"].."\x00\x00\x00\x01"..stream_info.pps
                         else
                             twappend("Not found PPS for [" .. stream_info.filename .. "], it might not be played!")
                         end
@@ -166,9 +172,9 @@ do
             
                 if begin_with_nalu_hdr then
                     -- *.264 raw file format seams that every nalu start with 0x00000001
-                    stream_info.file:write("\x00\x00\x00\x01")
+                    rtp_pkts[rtp_seq]["stream_data"] = rtp_pkts[rtp_seq]["stream_data"].."\x00\x00\x00\x01"
                 end
-                stream_info.file:write(str_bytes)
+                rtp_pkts[rtp_seq]["stream_data"] = rtp_pkts[rtp_seq]["stream_data"]..str_bytes
                 stream_info.counter2 = stream_info.counter2 + 1
 
                 -- update progress window's progress bar
@@ -180,23 +186,23 @@ do
         
         -- read RFC3984 about single nalu/stap-a/fu-a H264 payload format of rtp
         -- single NALU: one rtp payload contains only NALU
-        local function process_single_nalu(stream_info, h264)
-            write_to_file(stream_info, h264:tvb():raw(), true, true)
+        local function process_single_nalu(stream_info, rtp_seq, h264)
+            write_to_file(stream_info, rtp_seq, h264:tvb():raw(), true, true)
         end
         
         -- STAP-A: one rtp payload contains more than one NALUs
-        local function process_stap_a(stream_info, h264)
+        local function process_stap_a(stream_info, rtp_seq, h264)
             local h264tvb = h264:tvb()
             local offset = 1
             repeat
                 local size = h264tvb(offset,2):uint()
-                write_to_file(stream_info, h264tvb:raw(offset+2, size), true, true)
+                write_to_file(stream_info, rtp_seq, h264tvb:raw(offset+2, size), true, true)
                 offset = offset + 2 + size
             until offset >= h264tvb:len()
         end
         
         -- FU-A: one rtp payload contains only one part of a NALU (might be begin, middle and end part of a NALU)
-        local function process_fu_a(stream_info, h264)
+        local function process_fu_a(stream_info, rtp_seq, h264)
             local h264tvb = h264:tvb()
             local fu_idr = h264:get_index(0)
             local fu_hdr = h264:get_index(1)
@@ -204,10 +210,10 @@ do
             if bit.band(fu_hdr, 0x80) ~= 0 then
                 -- start bit is set then save nalu header and body
                 local nalu_hdr = bit.bor(bit.band(fu_idr, 0xE0), bit.band(fu_hdr, 0x1F))
-                write_to_file(stream_info, string.char(nalu_hdr) .. h264tvb:raw(2), true, end_of_nalu)
+                write_to_file(stream_info, rtp_seq, string.char(nalu_hdr) .. h264tvb:raw(2), true, end_of_nalu)
             else
                 -- start bit not set, just write part of nalu body
-                write_to_file(stream_info, h264tvb:raw(2), false, end_of_nalu)
+                write_to_file(stream_info, rtp_seq, h264tvb:raw(2), false, end_of_nalu)
             end
         end
         
@@ -218,7 +224,21 @@ do
                 return
             end
             local h264s = { f_h264() } -- using table because one packet may contains more than one RTP
-            
+
+            local rtp_pkt = {}
+            rtp_pkt["rtp_timestamp"] = f_rtp_timestamp().value
+            rtp_pkt["stream_info_key"] = get_stream_info_key(pinfo)
+            rtp_pkt["pkt_num"] = pinfo.number
+            rtp_pkt["stream_data"] = ""
+            local rtp_seq = f_rtp_seq().value
+            if min_rtp_seq == -1 or rtp_seq < min_rtp_seq then
+                min_rtp_seq = rtp_seq
+            end
+            if max_rtp_seq == -1 or rtp_seq > max_rtp_seq then
+                max_rtp_seq = rtp_seq
+            end
+            rtp_pkts[rtp_seq] = rtp_pkt
+
             for i,h264_f in ipairs(h264s) do
                 if h264_f.len < 2 then
                     return
@@ -229,17 +249,18 @@ do
                 
                 if hdr_type > 0 and hdr_type < 24 then
                     -- Single NALU
-                    process_single_nalu(stream_info, h264)
+                    process_single_nalu(stream_info, rtp_seq, h264)
                 elseif hdr_type == 24 then
                     -- STAP-A Single-time aggregation
-                    process_stap_a(stream_info, h264)
+                    process_stap_a(stream_info, rtp_seq, h264)
                 elseif hdr_type == 28 then
                     -- FU-A
-                    process_fu_a(stream_info, h264)
+                    process_fu_a(stream_info, rtp_seq, h264)
                 else
                     twappend("Error: No.=" .. tostring(pinfo.number) .. " unknown type=" .. hdr_type .. " ; we only know 1-23(Single NALU),24(STAP-A),28(FU-A)!")
                 end
             end
+
         end
         
         -- close all open files
@@ -293,6 +314,15 @@ do
             first_run = false
             -- second time it runs for saving h264 data to target file.
             retap_packets()
+
+            for rtp_seq= min_rtp_seq,max_rtp_seq do
+                local rtp_pkt = rtp_pkts[rtp_seq]
+                if rtp_pkt ~= nil then
+                    local stream_info = stream_infos[rtp_pkt["stream_info_key"]]
+                    stream_info.file:write(rtp_pkt["stream_data"])
+                end
+            end
+
             close_all_files()
             -- close progress window
             pgtw:close()
