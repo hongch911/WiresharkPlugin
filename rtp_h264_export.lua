@@ -240,7 +240,8 @@ do
             rtp_pkts[rtp_seq] = rtp_pkt
 
             for i,h264_f in ipairs(h264s) do
-                if h264_f.len < 2 then
+                if i > 1 then
+                    -- stap-a will contain more than 1 h264_f, but the first one will contain all data
                     return
                 end
                 local h264 = h264_f.range:bytes() 
