@@ -85,6 +85,8 @@ do
         local rtp_pkts = {}
         local min_rtp_seq = -1
         local max_rtp_seq = -1
+        local rtp_seq_base = 0
+        local last_rtp_seq = -1
 
         -- trigered by all h265 packats
         local list_filter = ''
@@ -239,6 +241,13 @@ do
             rtp_pkt["pkt_num"] = pinfo.number
             rtp_pkt["stream_data"] = ""
             local rtp_seq = f_rtp_seq().value
+
+            if last_rtp_seq ~= -1 and last_rtp_seq - rtp_seq > 50000 then
+                rtp_seq_base = rtp_seq_base + 65536
+            end
+            last_rtp_seq = rtp_seq
+            rtp_seq = rtp_seq + rtp_seq_base
+
             if min_rtp_seq == -1 or rtp_seq < min_rtp_seq then
                 min_rtp_seq = rtp_seq
             end
