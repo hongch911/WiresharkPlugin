@@ -3,6 +3,8 @@ There is the Video and Audio plugin for Wireshark
 
 Wireshark的音视频插件
 
+# 更新说明
+当前版本自测支持WireShark 4.4.0版本(lua5.4)
 
 # 文件说明
 rtp_h264_export.lua用于解析RTP包中的H264编码数据。本插件参考作者HuangQiangxiong(qiangxiong.huang@gmail.com)所作的H264解析插件，并进行了修改。
