@@ -34,16 +34,16 @@ do
     local version_str = string.match(_VERSION, "%d+[.]%d*")
     local version_num = version_str and tonumber(version_str) or 5.1
     -- lua>=5.4 直接使用位操作
-	-- 使用bit32进行位操作
+    -- 使用bit32进行位操作
 	if (version_num >= 5.4) then
 	   local function band(a,b)
 		  return(a&b)
 	   end
-
+	
 	   local function bor(a,b)
 		  return(a|b)
 	   end
-
+	
 	   local function lshift(a,b)
 		  return(a<<b)
 	   end
