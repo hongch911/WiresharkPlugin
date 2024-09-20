@@ -33,7 +33,23 @@ do
     -- 导出数据到文件部分
     local version_str = string.match(_VERSION, "%d+[.]%d*")
     local version_num = version_str and tonumber(version_str) or 5.1
-    local bit = (version_num >= 5.2) and require("bit32") or require("bit")
+    -- lua>=5.4 直接使用位操作
+	-- 使用bit32进行位操作
+	if (version_num >= 5.4) then
+	   local function band(a,b)
+		  return(a&b)
+	   end
+
+	   local function bor(a,b)
+		  return(a|b)
+	   end
+
+	   local function lshift(a,b)
+		  return(a<<b)
+	   end
+	else
+	   local bit = (version_num >= 5.2) and require("bit32") or require("bit")
+	end
 
     -- for geting data (the field's value is type of ByteArray)
     local f_data = Field.new("amr")
